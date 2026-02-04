@@ -46,11 +46,31 @@ class StatesRegistry {
 	}
 }
 
+// TODO: this is a naming issue because this can be undertans as the name of the transition 
+// no the name of the state, that can be a problem in the future 
 interface Transition {
 	readonly stateName: StateName;
 	readonly from: string;
 	readonly to: string;
 	readonly event: () => void;
+}
+
+let transitions = [
+	{ name: 'melt', from: 'solid', to: 'liquid' },
+	{ name: 'freeze', from: 'liquid', to: 'solid' },
+	{ name: 'vaporize', from: 'liquid', to: 'gas' },
+	{ name: 'condense', from: 'gas', to: 'liquid' }
+]
+
+function buildGrahp(transitionsArray: Transition[]): Map<StateName, Transition> {
+	// how can build this grahp
+	let grahp = new Map<StateName, Transition>();
+
+	transitionsArray.forEach((transition) => {
+
+	})
+
+	return new Map<StateName, Transition>();
 }
 
 class StateMachine {
@@ -98,11 +118,10 @@ class StateMachine {
 		if (this.grahedTransitions.has(stateName)) {
 			// error
 		}
-		
+
 		// i have to find the edges of this state
 		// el grafo no esta bien construido
 		this.grahedTransitions.get(stateName)?.to;
-
 	}
 
 
