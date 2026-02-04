@@ -57,6 +57,7 @@ class StateMachine {
 	private currentState: StateName;
 	private transitions: Transition[];
 	private statesRegistry: StatesRegistry = new StatesRegistry();
+	// TODO: fix typo here
 	private grahedTransitions = new Map<StateName, Transition>();
 
 	constructor(initialState: StateName, transitions: Transition[]) {
