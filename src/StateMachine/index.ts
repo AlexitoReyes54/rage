@@ -1,34 +1,42 @@
-// state machine entry point
-
-import { which } from "bun";
-
 /*
  * what are the requirement for the state machine
-	    - I need to have states -- done 
-	    - transitions (provoke change on the states) -- node 
-	    - self transitions  -- node 
-	- transitions to other states
-	    - events that can be fired when a transition is trigeres
-	- observers 
 	- be able to export the state of the machine
-
-	as well as clases to know the state of the machine:
-		- be able to see thins as all the states 
-		- the state names should be passed as param: 
-			- states 
-			- events
-			- transitions 
-		- add the following event to the state machines as func: 
-			- know what state im in 
-			- see what transitions can be done in the current state
-			- observe 
-			- see all the machine defined states 
-			- see if a transitino is valid as a util
- *
  *
  * warm ice  freeze => liquid => vapor */
 
 type StateName = string;
+
+interface StateNotification {
+	state: StateName,
+	transitions: Transition[]
+}
+
+interface Observer {
+	update(data: any): void;
+}
+
+interface EventManager {
+	suscribe(observer: Observer): void;
+	unSuscribe(observer: Observer): void;
+	notify(data: any): void;
+}
+
+class EventManager implements EventManager {
+	private suscribers: Set<Observer> = new Set();
+
+	suscribe(observer: Observer) {
+		this.suscribers.add(observer)
+	}
+
+	unSuscribe(observer: Observer) {
+		this.suscribers.delete(observer)
+	}
+
+	notify(data: StateNotification) {
+		this.suscribers.forEach((suscriber) => suscriber.update(data))
+	}
+}
+
 
 class StatesRegistry {
 	private states = new Set<StateName>();
@@ -53,10 +61,12 @@ interface Transition {
 	readonly event: () => void;
 }
 
-class StateMachine {
+class StateMachine implements Observer {
 	private currentState: StateName;
 	private statesRegistry: StatesRegistry = new StatesRegistry();
 	private statesGrahp: Map<StateName, Transition[]>;
+	private eventManager: EventManager = new EventManager();
+	onStateChange: null | ((data:StateNotification) => void)  = null;
 
 	constructor(initialState: StateName, states: StateName[], transitions: Transition[]) {
 		states.forEach((state) => this.statesRegistry.register(state));
@@ -64,6 +74,7 @@ class StateMachine {
 
 		this.statesGrahp = this.buildStateGrahp(transitions)
 		this.currentState = initialState;
+		this.eventManager.suscribe(this)
 	}
 
 	// GETTERS 
@@ -76,7 +87,17 @@ class StateMachine {
 		return this.statesGrahp
 	}
 
+	getAllStates(){
+		return this.statesRegistry.getAll();
+	}
+
 	// LOGIC
+
+	update(data: StateNotification): void {
+		if (this.onStateChange) {
+			this.onStateChange(data);
+		}
+	}
 
 	transition(transitionName: string) {
 		// implement an observer pattern in case i want to trigger a side effects
@@ -92,6 +113,10 @@ class StateMachine {
 
 		transitionObject.event();
 		this.currentState = transitionObject.to
+		this.eventManager.notify({
+			state: this.currentState,
+			transitions: this.getPossibleTransitions()
+		})
 	}
 
 
@@ -126,12 +151,12 @@ class StateMachine {
 			}
 		}
 
+
 		// TODO: we have to validate transition names so they dont repeeat themself there can not be 2 transtions from the the same 
 		// state with the same name, that can lead to a bug 
 
 	}
 }
-
 
 let mockEvent = () => null;
 let states = ['solid', 'liquid', 'gas']
@@ -144,20 +169,23 @@ let transitions: Transition[] = [
 
 let machine = new StateMachine('liquid', states, transitions)
 
+machine.onStateChange = (state) => {
+	console.log("this changed to: ", state.state)
+}
+console.log("state", machine.getAllStates());
 console.log("ini", machine.getCurrentState());
 console.log("moves", machine.getPossibleTransitions());
 
 let action1 = machine.getPossibleTransitions()[0]?.name || ""
 console.log("change", action1);
 machine.transition(action1);
-console.log("current", machine.getCurrentState());
 
 let action2 = machine.getPossibleTransitions()[0]?.name || ""
-console.log("change",action2 )
+console.log("change", action2)
 machine.transition(action2);
-console.log("current", machine.getCurrentState());
 
 export default StateMachine;
+
 /// how it should look like: 
 //
 //
