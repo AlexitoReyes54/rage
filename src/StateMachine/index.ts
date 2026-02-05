@@ -46,86 +46,77 @@ class StatesRegistry {
 	}
 }
 
-// TODO: this is a naming issue because this can be undertans as the name of the transition 
-// no the name of the state, that can be a problem in the future 
 interface Transition {
-	readonly stateName: StateName;
+	readonly name: string;
 	readonly from: string;
 	readonly to: string;
 	readonly event: () => void;
 }
 
-let transitions = [
-	{ name: 'melt', from: 'solid', to: 'liquid' },
-	{ name: 'freeze', from: 'liquid', to: 'solid' },
-	{ name: 'vaporize', from: 'liquid', to: 'gas' },
-	{ name: 'condense', from: 'gas', to: 'liquid' }
-]
-
-function buildGrahp(transitionsArray: Transition[]): Map<StateName, Transition> {
-	// how can build this grahp
-	let grahp = new Map<StateName, Transition>();
-
-	transitionsArray.forEach((transition) => {
-
-	})
-
-	return new Map<StateName, Transition>();
-}
-
 class StateMachine {
 	private currentState: StateName;
-	private transitions: Transition[];
 	private statesRegistry: StatesRegistry = new StatesRegistry();
-	// TODO: fix typo here
-	private grahedTransitions = new Map<StateName, Transition>();
+	private statesGrahp: Map<StateName, Transition[]>;
 
-	constructor(initialState: StateName, transitions: Transition[]) {
-		transitions.forEach((transition) => {
-			this.statesRegistry.register(transition.stateName)
-			this.grahedTransitions.set(transition.stateName, transition)
-		})
+	constructor(initialState: StateName, states: StateName[], transitions: Transition[]) {
+		states.forEach((state) => this.statesRegistry.register(state));
+		this.validateInput(initialState, transitions)
 
-		transitions.forEach((transition) => {
-			if (!this.statesRegistry.isValid(transition.from)) {
-				throw new Error("value in the property from is not a valid state")
-			}
-
-			if (!this.statesRegistry.isValid(transition.to)) {
-				throw new Error("value in the property to is not a valid state")
-			}
-		})
-
-		if (!this.statesRegistry.isValid(initialState)) {
-			throw new Error("initialState does not exits inside the transitions")
-		}
-
+		this.statesGrahp = this.buildStateGrahp(transitions)
 		this.currentState = initialState;
-		this.transitions = transitions
 	}
 
-	getCurrentState(): StateName {
+	// GETTERS 
+	
+	getCurrentState() {
 		return this.currentState;
 	}
 
-	transition(stateName: StateName): void {
-		// here i should move inside the the thing you see bro 
-		//i have to know if the movement is valid 
+	getStatesGrahp() {
+		return this.statesGrahp
+	}
+	
 
+	// UTILS AND VALIDATION 
+
+	private buildStateGrahp(transitionsArray: Transition[]) {
+		let grahp = new Map<StateName, Transition[]>();
+		this.statesRegistry.getAll().forEach((states) => grahp.set(states, []))
+
+		transitionsArray.forEach((transition) => {
+			let currentValue: Transition[] = grahp.get(transition.from) || [];
+			currentValue.push(transition)
+			grahp.set(transition.from, currentValue)
+		})
+
+		return grahp
 	}
 
-	isValidTransition(stateName: StateName) {
-		if (this.grahedTransitions.has(stateName)) {
-			// error
+	private validateInput(initialState: StateName, transitions: Transition[]) {
+		if (!this.statesRegistry.isValid(initialState)) {
+			throw new Error(`Invalid initial state: ${initialState}`);
 		}
 
-		// i have to find the edges of this state
-		// el grafo no esta bien construido
-		this.grahedTransitions.get(stateName)?.to;
+		for (const t of transitions) {
+			if (!this.statesRegistry.isValid(t.from) || !this.statesRegistry.isValid(t.to)) {
+				throw new Error(`Transition "${t.name}" references an unregistered state.`);
+			}
+		}
+
 	}
-
-
 }
+
+
+let mockEvent = () => null;
+let states = ['solid', 'liquid', 'gas']
+let transitions: Transition[] = [
+	{ name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
+	{ name: 'freeze', from: 'liquid', to: 'solid', event: mockEvent },
+	{ name: 'vaporize', from: 'liquid', to: 'gas', event: mockEvent },
+	{ name: 'condense', from: 'gas', to: 'liquid', event: mockEvent }
+]
+
+let machine = new StateMachine('liquid', states, transitions)
 
 export default StateMachine;
 /// how it should look like: 
