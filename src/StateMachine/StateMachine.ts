@@ -1,68 +1,7 @@
-/*
- * what are the requirement for the state machine
-	- be able to export the state of the machine
- *
- * warm ice  freeze => liquid => vapor */
 
-import { which } from "bun";
-
-type StateName = string;
-
-interface StateNotification {
-	state: StateName,
-	transitions: Transition[]
-}
-
-interface Observer {
-	update(data: any): void;
-}
-
-interface Transition {
-	readonly name: string;
-	readonly from: string;
-	readonly to: string;
-	readonly event: () => void;
-}
-
-interface EventManager {
-	suscribe(observer: Observer): void;
-	unSuscribe(observer: Observer): void;
-	notify(data: any): void;
-}
-
-class EventManager implements EventManager {
-	private suscribers: Set<Observer> = new Set();
-
-	suscribe(observer: Observer) {
-		this.suscribers.add(observer)
-	}
-
-	unSuscribe(observer: Observer) {
-		this.suscribers.delete(observer)
-	}
-
-	notify(data: StateNotification) {
-		this.suscribers.forEach((suscriber) => suscriber.update(data))
-	}
-}
-
-
-class StatesRegistry {
-	private states = new Set<StateName>();
-
-	register(stateName: StateName): void {
-		this.states.add(stateName);
-	}
-
-	getAll(): StateName[] {
-		return Array.from(this.states);
-	}
-
-	isValid(stateName: StateName): boolean {
-		return this.states.has(stateName);
-	}
-}
-
+import type { StateName, Observer, Transition, StateNotification } from "./types";
+import StatesRegistry from "./StatesRegistry";
+import EventManager from "./EventManager";
 
 class StateMachine implements Observer {
 	private currentState: StateName;
@@ -119,18 +58,23 @@ class StateMachine implements Observer {
 		})
 	}
 
-
 	getPossibleTransitions() {
 		let currentStateNode = this.statesGrahp.get(this.currentState) || [];
 		return currentStateNode;
 	}
 
-	generateSnapshot(){
-
+	generateSnapshot(): string {
+		return JSON.stringify({
+			state: this.currentState,
+			timestamp: Date.now()
+		});
 	}
 
-	recoverFromSnapshot(){
-
+	recoverFromSnapshot(snapshot: string) {
+		const data = JSON.parse(snapshot);
+		if (this.statesRegistry.isValid(data.state)) {
+			this.currentState = data.state;
+		}
 	}
 
 	// UTILS AND VALIDATION 
@@ -163,7 +107,7 @@ class StateMachine implements Observer {
 			let stateTransitions: Transition[] = grahp.get(transition.from) || [];
 			stateTransitions.push(transition)
 		})
-	
+
 		return grahp
 	}
 
