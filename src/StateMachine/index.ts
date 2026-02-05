@@ -67,7 +67,7 @@ class StateMachine {
 	}
 
 	// GETTERS 
-	
+
 	getCurrentState() {
 		return this.currentState;
 	}
@@ -75,7 +75,30 @@ class StateMachine {
 	getStatesGrahp() {
 		return this.statesGrahp
 	}
-	
+
+	// LOGIC
+
+	transition(transitionName: string) {
+		// implement an observer pattern in case i want to trigger a side effects
+		// as a consecuense to some component outside the events scope
+		let transitionObject = this.getPossibleTransitions()
+			.map((item) => item.name === transitionName ? item : undefined)
+			.filter(Boolean)[0];
+
+		if (!transitionObject) {
+			console.error("this is not a valid move")
+			throw new Error("this is not a valid move")
+		}
+
+		transitionObject.event();
+		this.currentState = transitionObject.to
+	}
+
+
+	getPossibleTransitions() {
+		let currentStateNode = this.statesGrahp.get(this.currentState) || [];
+		return currentStateNode;
+	}
 
 	// UTILS AND VALIDATION 
 
@@ -84,9 +107,9 @@ class StateMachine {
 		this.statesRegistry.getAll().forEach((states) => grahp.set(states, []))
 
 		transitionsArray.forEach((transition) => {
-			let currentValue: Transition[] = grahp.get(transition.from) || [];
-			currentValue.push(transition)
-			grahp.set(transition.from, currentValue)
+			let stateTransitions: Transition[] = grahp.get(transition.from) || [];
+			stateTransitions.push(transition)
+			grahp.set(transition.from, stateTransitions)
 		})
 
 		return grahp
@@ -103,6 +126,9 @@ class StateMachine {
 			}
 		}
 
+		// TODO: we have to validate transition names so they dont repeeat themself there can not be 2 transtions from the the same 
+		// state with the same name, that can lead to a bug 
+
 	}
 }
 
@@ -117,6 +143,19 @@ let transitions: Transition[] = [
 ]
 
 let machine = new StateMachine('liquid', states, transitions)
+
+console.log("ini", machine.getCurrentState());
+console.log("moves", machine.getPossibleTransitions());
+
+let action1 = machine.getPossibleTransitions()[0]?.name || ""
+console.log("change", action1);
+machine.transition(action1);
+console.log("current", machine.getCurrentState());
+
+let action2 = machine.getPossibleTransitions()[0]?.name || ""
+console.log("change",action2 )
+machine.transition(action2);
+console.log("current", machine.getCurrentState());
 
 export default StateMachine;
 /// how it should look like: 
