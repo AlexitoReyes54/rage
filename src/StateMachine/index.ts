@@ -4,6 +4,8 @@
  *
  * warm ice  freeze => liquid => vapor */
 
+import { which } from "bun";
+
 type StateName = string;
 
 interface StateNotification {
@@ -102,9 +104,7 @@ class StateMachine implements Observer {
 	}
 
 	transition(transitionName: string) {
-		let transitionObject = this.getPossibleTransitions()
-			.map((item) => item.name === transitionName ? item : undefined)
-			.filter(Boolean)[0];
+		let transitionObject = this.getPossibleTransitions().find(t => t.name === transitionName);
 
 		if (!transitionObject) {
 			console.error("this is not a valid move")
@@ -123,6 +123,14 @@ class StateMachine implements Observer {
 	getPossibleTransitions() {
 		let currentStateNode = this.statesGrahp.get(this.currentState) || [];
 		return currentStateNode;
+	}
+
+	generateSnapshot(){
+
+	}
+
+	recoverFromSnapshot(){
+
 	}
 
 	// UTILS AND VALIDATION 
@@ -154,9 +162,8 @@ class StateMachine implements Observer {
 		transitionsArray.forEach((transition) => {
 			let stateTransitions: Transition[] = grahp.get(transition.from) || [];
 			stateTransitions.push(transition)
-			grahp.set(transition.from, stateTransitions)
 		})
-
+	
 		return grahp
 	}
 
