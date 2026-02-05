@@ -15,6 +15,13 @@ interface Observer {
 	update(data: any): void;
 }
 
+interface Transition {
+	readonly name: string;
+	readonly from: string;
+	readonly to: string;
+	readonly event: () => void;
+}
+
 interface EventManager {
 	suscribe(observer: Observer): void;
 	unSuscribe(observer: Observer): void;
@@ -54,25 +61,20 @@ class StatesRegistry {
 	}
 }
 
-interface Transition {
-	readonly name: string;
-	readonly from: string;
-	readonly to: string;
-	readonly event: () => void;
-}
 
 class StateMachine implements Observer {
 	private currentState: StateName;
 	private statesRegistry: StatesRegistry = new StatesRegistry();
 	private statesGrahp: Map<StateName, Transition[]>;
 	private eventManager: EventManager = new EventManager();
-	onStateChange: null | ((data:StateNotification) => void)  = null;
+	onStateChange: null | ((data: StateNotification) => void) = null;
 
 	constructor(initialState: StateName, states: StateName[], transitions: Transition[]) {
 		states.forEach((state) => this.statesRegistry.register(state));
 		this.validateInput(initialState, transitions)
 
 		this.statesGrahp = this.buildStateGrahp(transitions)
+		this.validateTransitionsInGrahp();
 		this.currentState = initialState;
 		this.eventManager.suscribe(this)
 	}
@@ -87,7 +89,7 @@ class StateMachine implements Observer {
 		return this.statesGrahp
 	}
 
-	getAllStates(){
+	getAllStates() {
 		return this.statesRegistry.getAll();
 	}
 
@@ -100,8 +102,6 @@ class StateMachine implements Observer {
 	}
 
 	transition(transitionName: string) {
-		// implement an observer pattern in case i want to trigger a side effects
-		// as a consecuense to some component outside the events scope
 		let transitionObject = this.getPossibleTransitions()
 			.map((item) => item.name === transitionName ? item : undefined)
 			.filter(Boolean)[0];
@@ -127,6 +127,26 @@ class StateMachine implements Observer {
 
 	// UTILS AND VALIDATION 
 
+	private validateTransitionsInGrahp() {
+		for (const node of this.statesGrahp) {
+			let transitionNames = node[1].map((t) => t.name);
+			let transitionsTo = node[1].map((t) => t.to);
+
+			let uniqueTransitionNames = new Set(transitionNames);
+			let uniqueTransitionTo = new Set(transitionsTo);
+
+			if (uniqueTransitionNames.size !== transitionNames.length) {
+				console.error('there 2 transition with the same "name" value')
+				throw new Error('there 2 transition with the same "name" value')
+			}
+
+			if (uniqueTransitionTo.size !== transitionsTo.length) {
+				console.error('there 2 transition with the same "to" value ')
+				throw new Error('there 2 transition with the same "to" value ')
+			}
+		}
+	}
+
 	private buildStateGrahp(transitionsArray: Transition[]) {
 		let grahp = new Map<StateName, Transition[]>();
 		this.statesRegistry.getAll().forEach((states) => grahp.set(states, []))
@@ -149,12 +169,8 @@ class StateMachine implements Observer {
 			if (!this.statesRegistry.isValid(t.from) || !this.statesRegistry.isValid(t.to)) {
 				throw new Error(`Transition "${t.name}" references an unregistered state.`);
 			}
+
 		}
-
-
-		// TODO: we have to validate transition names so they dont repeeat themself there can not be 2 transtions from the the same 
-		// state with the same name, that can lead to a bug 
-
 	}
 }
 
@@ -186,7 +202,3 @@ machine.transition(action2);
 
 export default StateMachine;
 
-/// how it should look like: 
-//
-//
-//i pass the init, transitions, and events on each node
