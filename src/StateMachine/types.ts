@@ -31,6 +31,6 @@ export interface SlotsObject {
 
 export interface SnapshotObject {
 	state: string
-	slots: Map<string, AllowedSlotValues>
+	slots: Record<string, AllowedSlotValues>;
 	timestamp: number;
 }

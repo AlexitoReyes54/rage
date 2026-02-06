@@ -2,7 +2,6 @@ import type { StateName, Observer, Transition, StateNotification, AllowedSlotVal
 import StatesRegistry from "./StatesRegistry";
 import EventManager from "./EventManager";
 
-
 class StateMachine implements Observer {
 	private currentState: StateName;
 	private statesRegistry: StatesRegistry = new StatesRegistry();
@@ -103,18 +102,31 @@ class StateMachine implements Observer {
 	generateSnapshot(): string {
 		let snapshot: SnapshotObject = {
 			state: this.currentState,
-			slots: this.slotStorage,
+			slots: Object.fromEntries(this.slotStorage),
 			timestamp: Date.now()
 		}
 		return JSON.stringify(snapshot);
 	}
 
 	// TODO: i need some type of validation so i know whateveer im loading its not any sting
+
 	recoverFromSnapshot(snapshot: string) {
-		const data: SnapshotObject = JSON.parse(snapshot);
-		if (this.statesRegistry.isValid(data.state)) {
+		try {
+			const data = JSON.parse(snapshot);
+			if (!data || typeof data !== 'object') throw new Error("Invalid format");
+			if (!this.statesRegistry.isValid(data.state)) throw new Error(`State ${data.state} unregistered`);
+
+			if (data.slots && typeof data.slots === 'object') {
+				this.slotStorage.clear();
+				Object.entries(data.slots).forEach(([key, val]) => {
+					if (["string", "number", "boolean"].includes(typeof val)) {
+						this.slotStorage.set(key, val as AllowedSlotValues);
+					}
+				});
+			}
 			this.currentState = data.state;
-			this.slotStorage = data.slots
+		} catch (e) {
+			console.error("Recovery failed:", e instanceof Error ? e.message : e);
 		}
 	}
 
@@ -179,9 +191,8 @@ let slots = {
 	age: 19,
 	canDrink: true,
 }
-// TODO implement slot filling strategy for the sate machine 
 let machine = new StateMachine('liquid', states, transitions, slots)
-
+// TODO the flow needs to act as a guard for the slots 
 machine.onStateChange = (state) => {
 	console.log("this changed to: ", state.state)
 }
@@ -192,6 +203,9 @@ console.log("moves", machine.getPossibleTransitions());
 let action1 = machine.getPossibleTransitions()[0]?.name || ""
 console.log("change", action1);
 machine.transition(action1);
+console.log(machine.getAllSlots())
+machine.updateSingleSlot('name', 'elias')
+console.log(machine.getAllSlots())
 
 let action2 = machine.getPossibleTransitions()[0]?.name || ""
 console.log("change", action2)
