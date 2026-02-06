@@ -1,8 +1,9 @@
 export type StateName = string;
 
 export interface StateNotification {
-	state: StateName,
-	transitions: Transition[]
+	state: StateName;
+	transitions: Transition[];
+	slots: Map<string, AllowedSlotValues>;
 }
 
 export interface Observer {
@@ -20,4 +21,16 @@ export interface EventManager {
 	suscribe(observer: Observer): void;
 	unSuscribe(observer: Observer): void;
 	notify(data: any): void;
+}
+
+export type AllowedSlotValues = string | number | boolean;
+
+export interface SlotsObject {
+	[key: string]: AllowedSlotValues;
+}
+
+export interface SnapshotObject {
+	state: string
+	slots: Map<string, AllowedSlotValues>
+	timestamp: number;
 }

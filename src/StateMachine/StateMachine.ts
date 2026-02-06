@@ -1,22 +1,24 @@
-
-import type { StateName, Observer, Transition, StateNotification } from "./types";
+import type { StateName, Observer, Transition, StateNotification, AllowedSlotValues, SlotsObject, SnapshotObject } from "./types";
 import StatesRegistry from "./StatesRegistry";
 import EventManager from "./EventManager";
+
 
 class StateMachine implements Observer {
 	private currentState: StateName;
 	private statesRegistry: StatesRegistry = new StatesRegistry();
 	private statesGrahp: Map<StateName, Transition[]>;
 	private eventManager: EventManager = new EventManager();
+	private slotStorage: Map<string, AllowedSlotValues> = new Map();
 	onStateChange: null | ((data: StateNotification) => void) = null;
 
-	constructor(initialState: StateName, states: StateName[], transitions: Transition[]) {
+	constructor(initialState: StateName, states: StateName[], transitions: Transition[], slotsObject?: SlotsObject) {
 		states.forEach((state) => this.statesRegistry.register(state));
 		this.validateInput(initialState, transitions)
 
 		this.statesGrahp = this.buildStateGrahp(transitions)
 		this.validateTransitionsInGrahp();
 		this.currentState = initialState;
+		this.setSlotStorage(slotsObject || {})
 		this.eventManager.suscribe(this)
 	}
 
@@ -36,6 +38,40 @@ class StateMachine implements Observer {
 
 	// LOGIC
 
+	getAllSlots() {
+		return this.slotStorage;
+	}
+
+	getSlotValue(slotName: string) {
+		this.slotStorage.get(slotName)
+	}
+
+	private setSlotStorage(slotsObject: SlotsObject) {
+		const validTypes = ["string", "number", "boolean"];
+		for (const [key, value] of Object.entries(slotsObject)) {
+			if (!validTypes.includes(typeof value)) {
+				console.error("error in types ")
+				throw new Error('error in types')
+			}
+			this.slotStorage.set(key, value)
+		}
+	}
+
+	updateSingleSlot(slotName: string, slotValue: AllowedSlotValues) {
+		if (!this.slotStorage.has(slotName)) {
+			console.error('this slot dont exists')
+			throw new Error("this slot dont exits")
+		}
+		const slotCurrentValue = this.slotStorage.get(slotName)
+		if (typeof slotCurrentValue !== typeof slotValue) {
+			console.error('the value is not the correct, the correct type is:', typeof slotCurrentValue)
+			throw new Error('the value is not the correct, the correct type is:' + typeof slotCurrentValue)
+		}
+
+		this.slotStorage.set(slotName, slotValue)
+	}
+
+
 	update(data: StateNotification): void {
 		if (this.onStateChange) {
 			this.onStateChange(data);
@@ -54,7 +90,8 @@ class StateMachine implements Observer {
 		this.currentState = transitionObject.to
 		this.eventManager.notify({
 			state: this.currentState,
-			transitions: this.getPossibleTransitions()
+			transitions: this.getPossibleTransitions(),
+			slots: this.slotStorage
 		})
 	}
 
@@ -64,16 +101,20 @@ class StateMachine implements Observer {
 	}
 
 	generateSnapshot(): string {
-		return JSON.stringify({
+		let snapshot: SnapshotObject = {
 			state: this.currentState,
+			slots: this.slotStorage,
 			timestamp: Date.now()
-		});
+		}
+		return JSON.stringify(snapshot);
 	}
 
+	// TODO: i need some type of validation so i know whateveer im loading its not any sting
 	recoverFromSnapshot(snapshot: string) {
-		const data = JSON.parse(snapshot);
+		const data: SnapshotObject = JSON.parse(snapshot);
 		if (this.statesRegistry.isValid(data.state)) {
 			this.currentState = data.state;
+			this.slotStorage = data.slots
 		}
 	}
 
@@ -133,8 +174,13 @@ let transitions: Transition[] = [
 	{ name: 'vaporize', from: 'liquid', to: 'gas', event: mockEvent },
 	{ name: 'condense', from: 'gas', to: 'liquid', event: mockEvent }
 ]
-
-let machine = new StateMachine('liquid', states, transitions)
+let slots = {
+	name: "Juan",
+	age: 19,
+	canDrink: true,
+}
+// TODO implement slot filling strategy for the sate machine 
+let machine = new StateMachine('liquid', states, transitions, slots)
 
 machine.onStateChange = (state) => {
 	console.log("this changed to: ", state.state)
