@@ -5,7 +5,7 @@
 
 # implment:  ask_before_filling: true
 process:
-  - id: process_id1
+  - id: greet
     name: "process_id1 name"
     description: "process_id1 description"
 
@@ -20,7 +20,7 @@ process:
         - type: ACTION
           action: "some action"
         - type: LINK
-          link: "process id of the next step"
+          link: "ask_name"
 
     steps:
       - type: COLLECT
@@ -32,13 +32,13 @@ process:
       - type: COLLECT
         collect:
           name: "user_age"
-          type: "string"
+          type: "number"
           note: "optional relevant information for the model"
           validation: ">= 0"
       - type: LINK
-        link: "process id of the next step"
+        link: "ask_name"
 
-  - id: process_id2
+  - id: ask_name
     name: "process_id2 name"
     description: "process_id2 description"
 
@@ -50,6 +50,24 @@ process:
           note: "optional relevant information for the model"
           validation: ">= 0"
       - type: LINK
-        link: "process id of the next step"
+        link: "send_data"
+
+  - id: send_data
+    name: "process_id2 name"
+    description: "process_id2 description"
+    steps:
+      - type: ACTION
+        action: "sweet_pain"
+      - type: LINK
+        link: "send_data"
+
+  - id: sweet_pain
+    name: "process_id2 name"
+    description: "process_id2 description"
+    steps:
+      - type: ACTION
+        action: "some acion"
+      - type: LINK
+        link: "end"
 
 ask_before_filling: true
