@@ -263,6 +263,7 @@ class BussinesLogicParser {
 			this.validateSlots(result.data);
 			this.validateContidiontal(result.data);
 			this.validateFlowIsCorrect(result.data)
+			// TODO	validateActions:w
 		} else {
 			throw new Error("file structre is wrong review the documentation")
 		}
@@ -281,6 +282,7 @@ class BussinesLogicParser {
 		// 	- no use non existen slots 
 		// 	validate data type
 		//
+
 		//
 		// 3. validate conditionals
 		// 	-  3make sure all condition are comparing using the right type of comparinson based on the data type
