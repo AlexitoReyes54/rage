@@ -210,7 +210,6 @@ class BussinesLogicParser {
 
 
 	validateFlowIsCorrect(file: Workflow) {
-		// what i need here to make this Workflow
 		// 1. flow entry -- done 
 		// 2. all the names id so i know that references  are valid -- done 
 		// 3. a grahp to know its all valid 
@@ -239,18 +238,22 @@ class BussinesLogicParser {
 				let conditionTrue = extractValidLinks(procesNode.if?.then, nodeIDs);
 				let conditionFalse = extractValidLinks(procesNode.if?.else, nodeIDs)
 
-				linksArr?.push(...conditionTrue,...conditionFalse)
+				linksArr?.push(...conditionTrue, ...conditionFalse)
 			}
 
 			let step = extractValidLinks(procesNode.steps, nodeIDs)
 
 			// TODO remove duplicates from the linksArr
 			linksArr?.push(...step)
-			console.log({
-				step,
-			});
 		})
 
+
+		// what i have to do 
+		//
+		// i need to make sure that a node has to has some reference
+		// it has to have an end 
+		// that is the more important 
+		
 		console.log(linksMap);
 		console.log(nodeIDs);
 	}
