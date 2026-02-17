@@ -1,95 +1,13 @@
-import { which, YAML } from "bun";
-import * as z from "zod";
-
-// mock file for testing aa
-import init from "./init.yml"
+import { YAML } from "bun";
+import type { StepType, CollectObj, Workflow, Slot, } from "./types";
+import { bussinesLogicFile } from "./types"
+import { END } from "./constants";
 import { parseCondition } from "./utils/parseCondition";
 import { validateOperator } from "./utils/validateOperator";
+import { hasDuplicates } from "./utils/hasDuplicates";
 
-const bussinesLogicFile = z.object({
-	process: z.array(z.any())
-});
-
-// 1. First, define the core primitives
-
-type SlotTypes = "string" | "number" | "boolean";
-
-const SlotTypes = z.enum(["string", "number", "boolean"]);
-const StepType = z.enum(["LINK", "COLLECT"]);
-
-const CollectObject = z.object({
-	name: z.string(),
-	type: SlotTypes,
-	note: z.string().optional(),
-	validation: z.string().optional(),
-});
-
-const CollectStep = z.object({
-	type: z.literal("COLLECT"),
-	collect: CollectObject
-});
-
-const LinkStep = z.object({
-	type: z.literal("LINK"),
-	link: z.string(), // process id reference
-});
-
-const NextEndStep = z.object({
-	type: z.literal("NEXT"),
-	next: z.literal("END"),
-});
-
-const Step = z.union([CollectStep, LinkStep, NextEndStep]);
-const Steps = z.array(Step);
-
-// 2. Conditional block
-
-const Conditional = z.object({
-	condition: z.string(),
-	then: Steps,
-	else: Steps,
-});
-
-//3. Process schema
-const Process = z.object({
-	id: z.string(),
-	name: z.string(),
-	description: z.string().optional(),
-	if: Conditional.optional(),
-	steps: Steps,
-});
-
-//4. Full file schema (global scope)
-
-const ProcessFile = z.object({
-	process: z.array(Process),
-	ask_before_filling: z.boolean().optional(),
-});
-
-
-type Workflow = z.infer<typeof ProcessFile>;
-type StepType = z.infer<typeof Step>
-type LinkStepType = z.infer<typeof LinkStep>
-
-type LINK = "LINK"
-type COLLECT = "COLLECT"
-type UNDEFINED = "UNDEFINED"
-
-type StepTypeNames = LINK | COLLECT | UNDEFINED
-
-const END = "END";
-
-interface Slot {
-	type: SlotTypes,
-	name: string,
-}
-
-type CollectObj = z.infer<typeof CollectObject>;
-
-function hasDuplicates<T>(arr: T[]) {
-	return new Set(arr).size !== arr.length;
-}
-
+// test
+import init from "./init.yml" // mock file 
 
 function extractValidLinks(
 	steps: StepType[],
@@ -161,7 +79,7 @@ class BussinesLogicParser {
 			}
 
 			if (!this.slotsObjStore.has(condition.left)) {
-				throw new Error('error the slot is not defined')
+				throw new Error('error the slot is not defined '+ condition.left)
 			}
 
 			if (this.slotsObjStore.get(condition.left)?.type !== typeof condition.right.valueOf()) {
@@ -237,43 +155,22 @@ class BussinesLogicParser {
 		});
 	}
 
+	// TODO this has ti revice as a param a YAML file
 	loadYAML() {
-		let init_ = YAML.parse(init)
 		const result = bussinesLogicFile.safeParse(init)
 		if (result.success) {
 			// good 
 			this.validateSlots(result.data);
 			this.validateContidiontal(result.data);
+			// actions are not valid insithe the conditional is has to happend in the steps
 			// the flow entry is the first item in the process list of YAML file
 			this.validateFlowIsCorrect(result.data)
-			// TODO	validateActions:w
+			// TODO	validateActionsExist
 
 		} else {
 			throw new Error("file structre is wrong review the documentation")
 		}
 
-
-		// steps to implement this parser 
-		// what this component has to do ? ????
-		//
-		// 1. validate the structre -- done with zod 
-		//
-		// 2. validate slots	 -- done
-		// 	- to do that we have to make sure we collect all the 
-		// 	collect item in the Process
-		// 	- no conditional can use a slot if that is not defined 
-		// 	in a previus process item
-		// 	- no use non existen slots 
-		// 	validate data type
-		//
-
-		//
-		// 3. validate conditionals
-		// 	-  3make sure all condition are comparing using the right type of comparinson based on the data type
-
-		// 4. validate flow has and end and there are not open end
-		// 5.
-		//
 		// TODO actions validation has to happend and i need this implementation here in the parser 
 		// to make sure whatever action im calling already exist in the code
 		// once i make the classe reponsable to orquetrater actions i need to get them all and make sure tha any action call is 

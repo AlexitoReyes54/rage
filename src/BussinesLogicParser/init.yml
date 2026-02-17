@@ -9,19 +9,6 @@ process:
     name: "process_id1 name"
     description: "process_id1 description"
 
-    if:
-      condition: "user_age > 10"
-      then:
-        - type: ACTION
-          action: "some action"
-        - type: NEXT
-          next: END
-      else:
-        - type: ACTION
-          action: "some action"
-        - type: LINK
-          link: "ask_name"
-
     steps:
       - type: COLLECT
         collect:
@@ -42,6 +29,20 @@ process:
     name: "process_id2 name"
     description: "process_id2 description"
 
+    if:
+      condition: "user_age > 10"
+      then:
+        - type: ACTION
+          action: "some action"
+        - type: NEXT
+          next: END
+      else:
+        - type: ACTION
+          action: "some action"
+        - type: LINK
+          link: "ask_name"
+
+ 
     steps:
       - type: COLLECT
         collect:
