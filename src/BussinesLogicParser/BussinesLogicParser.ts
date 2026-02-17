@@ -91,7 +91,6 @@ function hasDuplicates<T>(arr: T[]) {
 }
 
 
-
 function extractValidLinks(
 	steps: StepType[],
 	nodeIDs: Set<string>
@@ -111,33 +110,27 @@ class BussinesLogicParser {
 	// TODO refactor this to have less indentation and its easier to read 
 	validateSlots(file: Workflow) {
 		let slotCollections = new Map<string, Slot[]>();
-		file.process.forEach((procesNode) => {
+		file.process
+			.filter(node => node.steps !== undefined)
+			.forEach((procesNode) => {
 
-			if (procesNode.steps) {
-				procesNode.steps.forEach((step) => {
-
-					if (step.type === "COLLECT") {
+				procesNode.steps
+					.filter(step => step.type === "COLLECT")
+					.forEach((step) => {
 
 						// TODO in the future we have to handle somehow the validation that is been ignore
 						// this.evaluateSlotValidation(step.collect) 
-						if (!slotCollections.has(procesNode.id)) {
-							slotCollections.set(procesNode.id, [{
-								type: step.collect.type,
-								name: step.collect.name
-							}])
-						} else {
-							let slowRow = slotCollections.get(procesNode.id)
-							slowRow?.push({
-								type: step.collect.type,
-								name: step.collect.name
-							})
-						}
 
-					}
+						const collections = slotCollections.get(procesNode.id) ?? [];
 
-				})
-			}
-		})
+						collections.push({
+							type: step.collect.type,
+							name: step.collect.name
+						})
+
+						slotCollections.set(procesNode.id, collections)
+					})
+			})
 
 		const allSlotsArray = Array.from(slotCollections.values()).reduce<Slot[]>((acc, items) => {
 			if (hasDuplicates(items.map(slot => slot.name))) {
@@ -253,7 +246,7 @@ class BussinesLogicParser {
 		// i need to make sure that a node has to has some reference
 		// it has to have an end 
 		// that is the more important 
-		
+
 		console.log(linksMap);
 		console.log(nodeIDs);
 	}
