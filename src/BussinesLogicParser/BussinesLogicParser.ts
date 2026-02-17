@@ -79,7 +79,7 @@ class BussinesLogicParser {
 			}
 
 			if (!this.slotsObjStore.has(condition.left)) {
-				throw new Error('error the slot is not defined '+ condition.left)
+				throw new Error('error the slot is not defined ' + condition.left)
 			}
 
 			if (this.slotsObjStore.get(condition.left)?.type !== typeof condition.right.valueOf()) {
