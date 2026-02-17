@@ -6,13 +6,18 @@ export const bussinesLogicFile = z.object({
 });
 
 export const SlotTypes = z.enum(["string", "number", "boolean"]);
-export const StepType = z.enum(["LINK", "COLLECT"]);
+export const StepType = z.enum(["LINK", "COLLECT", "ACTION"]);
 
 export const CollectObject = z.object({
 	name: z.string(),
 	type: SlotTypes,
 	note: z.string().optional(),
 	validation: z.string().optional(),
+});
+
+export const ActionStep = z.object({
+	type: z.literal("ACTION"),
+	action: z.string()
 });
 
 export const CollectStep = z.object({
@@ -30,7 +35,7 @@ export const NextEndStep = z.object({
 	next: z.literal("END"),
 });
 
-export const Step = z.union([CollectStep, LinkStep, NextEndStep]);
+export const Step = z.union([CollectStep, LinkStep, NextEndStep, ActionStep]);
 export const Steps = z.array(Step);
 
 export const Conditional = z.object({
@@ -61,14 +66,12 @@ export type CollectObj = z.infer<typeof CollectObject>;
 
 export type LINK = "LINK"
 export type COLLECT = "COLLECT"
+export type ACTION = "ACTION"
 export type UNDEFINED = "UNDEFINED"
-export type StepTypeNames = LINK | COLLECT | UNDEFINED
+export type StepTypeNames = LINK | COLLECT | ACTION | UNDEFINED
 export type SlotTypes = "string" | "number" | "boolean";
 
 export interface Slot {
 	type: SlotTypes,
 	name: string,
 }
-
-
-

@@ -2,7 +2,7 @@ import { actionDefinitions } from "./actionsDefinitions";
 
 export class ActionsManager {
 
-	getAllAvailableActionsNames(): { name: string, description: string }[] {
+	getAllAvailableActions(): { name: string, description: string }[] {
 		return actionDefinitions.definitions.map(item => {
 			return {
 				name: item.name,

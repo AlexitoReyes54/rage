@@ -5,6 +5,7 @@ import { END } from "./constants";
 import { parseCondition } from "./utils/parseCondition";
 import { validateOperator } from "./utils/validateOperator";
 import { hasDuplicates } from "./utils/hasDuplicates";
+import ActionsManager from "./../ActionsManager/ActionsManager"
 
 // test
 import init from "./init.yml" // mock file 
@@ -56,6 +57,7 @@ class BussinesLogicParser {
 			acc.push(...items);
 			return acc;
 		}, []);
+
 
 		if (hasDuplicates(allSlotsArray.map(slot => slot.name))) {
 			throw new Error("there are duplicated slot names in the file review all the nodes")
@@ -155,26 +157,44 @@ class BussinesLogicParser {
 		});
 	}
 
+	validateActionsExist(file: Workflow) {
+		const actionsManager = new ActionsManager();
+		let actionsList = new Set<string>(actionsManager.getAllAvailableActions().map(action => action.name));
+
+		file.process.forEach(procesNode => {
+			let sources = [
+				procesNode.if?.then,
+				procesNode.if?.else,
+				procesNode.steps
+			]
+
+			sources.filter(Boolean)
+				.flatMap(item => item)
+				.filter(item => item?.type === "ACTION")
+				.forEach(item => {
+					if (!actionsList.has(item.action)) {
+						throw new Error('this action ' + item.action + ' does not exist inside ' + procesNode.id);
+					}
+				})
+		})
+	}
+
 	// TODO this has ti revice as a param a YAML file
 	loadYAML() {
 		const result = bussinesLogicFile.safeParse(init)
 		if (result.success) {
-			// good 
 			this.validateSlots(result.data);
 			this.validateContidiontal(result.data);
+			
 			// actions are not valid insithe the conditional is has to happend in the steps
 			// the flow entry is the first item in the process list of YAML file
-			this.validateFlowIsCorrect(result.data)
-			// TODO	validateActionsExist
-
+			
+			this.validateFlowIsCorrect(result.data);
+			this.validateActionsExist(result.data);
 		} else {
 			throw new Error("file structre is wrong review the documentation")
 		}
 
-		// TODO actions validation has to happend and i need this implementation here in the parser 
-		// to make sure whatever action im calling already exist in the code
-		// once i make the classe reponsable to orquetrater actions i need to get them all and make sure tha any action call is 
-		// insie the list of the one able to use 
 	}
 }
 

@@ -5,7 +5,7 @@ let mockFn = () => {
 }
 
 let mockAction: ActionDefinition<void, string> = {
-	name: "mock action",
+	name: "mockAction",
 	definition: 'used to test that actions are capable of running ',
 	function: mockFn
 }

@@ -33,12 +33,12 @@ process:
       condition: "user_age > 10"
       then:
         - type: ACTION
-          action: "some action"
+          action: "mockAction"
         - type: NEXT
           next: END
       else:
         - type: ACTION
-          action: "some action"
+          action: "mockAction"
         - type: LINK
           link: "ask_name"
 
@@ -58,7 +58,7 @@ process:
     description: "process_id2 description"
     steps:
       - type: ACTION
-        action: "sweet_pain"
+        action: "mockAction"
       - type: LINK
         link: "sweet_pain"
 
@@ -67,7 +67,7 @@ process:
     description: "process_id2 description"
     steps:
       - type: ACTION
-        action: "some acion"
+        action: "mockAction"
       - type: LINK
         link: "END"
 
