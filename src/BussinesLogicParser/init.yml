@@ -59,7 +59,7 @@ process:
       - type: ACTION
         action: "sweet_pain"
       - type: LINK
-        link: "send_data"
+        link: "sweet_pain"
 
   - id: sweet_pain
     name: "process_id2 name"
@@ -68,6 +68,6 @@ process:
       - type: ACTION
         action: "some acion"
       - type: LINK
-        link: "end"
+        link: "END"
 
 ask_before_filling: true

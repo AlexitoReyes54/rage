@@ -5,7 +5,6 @@ import * as z from "zod";
 import init from "./init.yml"
 import { parseCondition } from "./utils/parseCondition";
 import { validateOperator } from "./utils/validateOperator";
-import { omit } from "zod/mini";
 
 const bussinesLogicFile = z.object({
 	process: z.array(z.any())
@@ -78,6 +77,7 @@ type UNDEFINED = "UNDEFINED"
 
 type StepTypeNames = LINK | COLLECT | UNDEFINED
 
+const END = "END";
 
 interface Slot {
 	type: SlotTypes,
@@ -98,16 +98,14 @@ function extractValidLinks(
 	return steps
 		.filter(step => step.type === 'LINK')
 		.map(step => step.link)
-		.filter(nodeLink => nodeIDs.has(nodeLink))
+		.filter(nodeLink => nodeIDs.has(nodeLink) || nodeLink === END)
 }
 
 
-// use types here and not a single string
 class BussinesLogicParser {
 	slotsStorage: Map<string, Slot[]> = new Map();
 	slotsObjStore: Map<string, CollectObj> = new Map();
 
-	// TODO refactor this to have less indentation and its easier to read 
 	validateSlots(file: Workflow) {
 		let slotCollections = new Map<string, Slot[]>();
 		file.process
@@ -188,67 +186,55 @@ class BussinesLogicParser {
 			}
 
 
-			// make sure the slot used in this condition is not defined inse the same node, is has to be a previus one 
-			//
+			// TODO make sure the slot used in this condition is not defined inse the same node, is has to be a previus one 
 			// to do that i need the flow validation to make sure this is ok 
 		})
 		return true;
 	}
 
-
 	getLinksInStep(steps: StepType[]) {
 		return steps.map(item => item.type === 'LINK');
 	}
 
-
-
 	validateFlowIsCorrect(file: Workflow) {
-		// 1. flow entry -- done 
-		// 2. all the names id so i know that references  are valid -- done 
-		// 3. a grahp to know its all valid 
-		// 4. there can not be any free node with no referent 
-		// 5. there has to be an end to the thing
-		//
-		//
-		// the flow entry is the first item in the process list of 
-		// the yaml file
-		let linksMap = new Map<string, string[]>();
+		let linksMap = new Map<string, Set<string>>();
 
 		const nodeIDs = new Set<string>();
 		file.process.forEach(procesNode => {
 			nodeIDs.add(procesNode.id);
-			linksMap.set(procesNode.id, [])
+			linksMap.set(procesNode.id, new Set())
 		})
 
 		file.process.forEach(procesNode => {
-
 			let linksArr = linksMap.get(procesNode.id)
-			if (!procesNode.steps) {
-				throw new Error('there is some null value in steps in here ' + procesNode.id)
-			}
+			let sources = [
+				procesNode.if?.then,
+				procesNode.if?.else,
+				procesNode.steps]
 
-			if (procesNode.if) {
-				let conditionTrue = extractValidLinks(procesNode.if?.then, nodeIDs);
-				let conditionFalse = extractValidLinks(procesNode.if?.else, nodeIDs)
-
-				linksArr?.push(...conditionTrue, ...conditionFalse)
-			}
-
-			let step = extractValidLinks(procesNode.steps, nodeIDs)
-
-			// TODO remove duplicates from the linksArr
-			linksArr?.push(...step)
+			sources.filter(Boolean)
+				.flatMap(source => extractValidLinks(source as StepType[], nodeIDs))
+				.forEach(item => linksArr?.add(item))
 		})
 
+		let allEdges: Set<string> = new Set(Array
+			.from(linksMap.values())
+			.flatMap(edges => Array.from(edges))
+		);
 
-		// what i have to do 
-		//
-		// i need to make sure that a node has to has some reference
-		// it has to have an end 
-		// that is the more important 
+		if (Array.from(allEdges).filter(edgeTo => edgeTo === "END").length !== 1) {
+			throw new Error('thers is no END pointer in the bussinesLogicFile or there are more than one END ref')
+		}
 
-		console.log(linksMap);
-		console.log(nodeIDs);
+		Array.from(nodeIDs.values()).map((nodeId, index) => {
+			const hasEdge = allEdges.has(nodeId);
+			const isEntry = index === 0;
+
+			if (!isEntry && !hasEdge) {
+				throw new Error('There is a node without ref: ' + nodeId);
+			}
+			return { nodeId, hasEdge, isEntry };
+		});
 	}
 
 	loadYAML() {
@@ -258,8 +244,10 @@ class BussinesLogicParser {
 			// good 
 			this.validateSlots(result.data);
 			this.validateContidiontal(result.data);
+			// the flow entry is the first item in the process list of YAML file
 			this.validateFlowIsCorrect(result.data)
 			// TODO	validateActions:w
+
 		} else {
 			throw new Error("file structre is wrong review the documentation")
 		}
