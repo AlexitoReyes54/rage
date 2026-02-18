@@ -33,6 +33,9 @@ process:
       condition: "user_age > 10"
       then:
         - type: ACTION
+          params: 
+            - user_age
+            - user_ID
           action: "mockAction"
         - type: NEXT
           next: END

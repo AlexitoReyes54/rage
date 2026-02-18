@@ -9,7 +9,7 @@ db.run(`CREATE TABLE IF NOT EXISTS templates (id INTEGER PRIMARY KEY AUTOINCREME
 const STATUS_ORDER = ['New', 'Contacted', 'Interested', 'Client'];
 const PORT = 3000;
 
-const server = Bun.serve({
+const server= Bun.serve({
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url);

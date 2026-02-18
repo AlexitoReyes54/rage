@@ -185,11 +185,12 @@ class BussinesLogicParser {
 		if (result.success) {
 			this.validateSlots(result.data);
 			this.validateContidiontal(result.data);
-			
+
 			// actions are not valid insithe the conditional is has to happend in the steps
 			// the flow entry is the first item in the process list of YAML file
-			
+
 			this.validateFlowIsCorrect(result.data);
+			// TODO implement validation for the params in the actions steps
 			this.validateActionsExist(result.data);
 		} else {
 			throw new Error("file structre is wrong review the documentation")

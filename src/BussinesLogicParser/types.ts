@@ -1,4 +1,3 @@
-
 import * as z from "zod";
 
 export const bussinesLogicFile = z.object({
@@ -17,7 +16,8 @@ export const CollectObject = z.object({
 
 export const ActionStep = z.object({
 	type: z.literal("ACTION"),
-	action: z.string()
+	action: z.string(),
+	params: z.array(z.string()).optional()
 });
 
 export const CollectStep = z.object({
