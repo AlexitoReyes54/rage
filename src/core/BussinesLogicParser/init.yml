@@ -1,0 +1,77 @@
+# the validation fot make sure this works has to happend on the build time
+# its like a compiled langueage
+
+# the scope is global for all the processes in this file
+
+# implment:  ask_before_filling: true
+process:
+  - id: greet
+    name: "process_id1 name"
+    description: "process_id1 description"
+
+    steps:
+      - type: COLLECT
+        collect:
+          name: "user_name"
+          type: "string"
+          note: "optional relevant information for the model"
+          validation: ">= 0"
+      - type: COLLECT
+        collect:
+          name: "user_age"
+          type: "number"
+          note: "optional relevant information for the model"
+          validation: ">= 0"
+      - type: LINK
+        link: "ask_name"
+
+  - id: ask_name
+    name: "process_id2 name"
+    description: "process_id2 description"
+
+    if:
+      condition: "user_age > 10"
+      then:
+        - type: ACTION
+          params: 
+            - user_age
+            - user_ID
+          action: "mockAction"
+        - type: NEXT
+          next: END
+      else:
+        - type: ACTION
+          action: "mockAction"
+        - type: LINK
+          link: "ask_name"
+
+ 
+    steps:
+      - type: COLLECT
+        collect:
+          name: "user_ID"
+          type: "string"
+          note: "optional relevant information for the model"
+          validation: ">= 0"
+      - type: LINK
+        link: "send_data"
+
+  - id: send_data
+    name: "process_id2 name"
+    description: "process_id2 description"
+    steps:
+      - type: ACTION
+        action: "mockAction"
+      - type: LINK
+        link: "sweet_pain"
+
+  - id: sweet_pain
+    name: "process_id2 name"
+    description: "process_id2 description"
+    steps:
+      - type: ACTION
+        action: "mockAction"
+      - type: LINK
+        link: "END"
+
+ask_before_filling: true
