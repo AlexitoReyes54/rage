@@ -1,15 +1,12 @@
 import { YAML } from "bun";
 import type { StepType, CollectObj, Workflow, Slot, } from "./types";
-import { bussinesLogicFile } from "./types"
+import { ProcessFile } from "./types"
 import { END } from "./constants";
 import { parseCondition } from "./utils/parseCondition";
 import { validateOperator } from "./utils/validateOperator";
 import { hasDuplicates } from "./utils/hasDuplicates";
 import ActionsManager from "./../ActionsManager/ActionsManager"
 import AppError from "../Errors/AppError";
-
-// test
-import init from "./init.yml" // mock file 
 
 function extractValidLinks(
 	steps: StepType[],
@@ -180,9 +177,8 @@ class BussinesLogicParser {
 		})
 	}
 
-	// TODO this has ti revice as a param a YAML file
-	loadYAML() {
-		const result = bussinesLogicFile.safeParse(init)
+	loadYAML(yamlFile: string) {
+		const result = ProcessFile.safeParse(YAML.parse(yamlFile))
 		if (result.success) {
 			this.validateSlots(result.data);
 			this.validateContidiontal(result.data);
@@ -193,6 +189,7 @@ class BussinesLogicParser {
 			this.validateFlowIsCorrect(result.data);
 			// TODO implement validation for the params in the actions steps
 			this.validateActionsExist(result.data);
+			return result.data;
 		} else {
 			throw new AppError("file structre is wrong review the documentation")
 		}
@@ -200,7 +197,12 @@ class BussinesLogicParser {
 	}
 }
 
-let parser = new BussinesLogicParser();
-parser.loadYAML()
+
+Bun.file("./init.yml").text().then(res => {
+	let parser = new BussinesLogicParser();
+	parser.loadYAML(res)
+	console.log(res);
+}).catch(e => console.log("error manito", e.message));
+
 
 export default BussinesLogicParser;
