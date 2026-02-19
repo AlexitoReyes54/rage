@@ -6,6 +6,7 @@ import { parseCondition } from "./utils/parseCondition";
 import { validateOperator } from "./utils/validateOperator";
 import { hasDuplicates } from "./utils/hasDuplicates";
 import ActionsManager from "./../ActionsManager/ActionsManager"
+import AppError from "../Errors/AppError";
 
 // test
 import init from "./init.yml" // mock file 
@@ -51,7 +52,7 @@ class BussinesLogicParser {
 
 		const allSlotsArray = Array.from(slotCollections.values()).reduce<Slot[]>((acc, items) => {
 			if (hasDuplicates(items.map(slot => slot.name))) {
-				throw new Error("There are duplicated collect(slot names) in a single node");
+				throw new AppError("There are duplicated collect(slot names) in a single node");
 			}
 			items.map(item => this.slotsObjStore.set(item.name, item))
 			acc.push(...items);
@@ -60,7 +61,7 @@ class BussinesLogicParser {
 
 
 		if (hasDuplicates(allSlotsArray.map(slot => slot.name))) {
-			throw new Error("there are duplicated slot names in the file review all the nodes")
+			throw new AppError("there are duplicated slot names in the file review all the nodes")
 		}
 
 
@@ -77,32 +78,32 @@ class BussinesLogicParser {
 			const condition = parseCondition(procesNode.if?.condition || "")
 
 			if (!condition.right || !condition.operator || !condition.left) {
-				throw new Error('Error parsing the conditioal')
+				throw new AppError('Error parsing the conditioal')
 			}
 
 			if (!this.slotsObjStore.has(condition.left)) {
-				throw new Error('error the slot is not defined ' + condition.left)
+				throw new AppError('error the slot is not defined ' + condition.left)
 			}
 
 			if (this.slotsObjStore.get(condition.left)?.type !== typeof condition.right.valueOf()) {
-				throw new Error('the slot is not the same data type as the right value ' + condition.left)
+				throw new AppError('the slot is not the same data type as the right value ' + condition.left)
 			}
 
 			if (!validateOperator(condition.right, condition.operator)) {
-				throw new Error('the operator is not valid for the data type of the slot')
+				throw new AppError('the operator is not valid for the data type of the slot')
 			}
 
 			if (!procesNode.if.else) {
-				throw new Error('the else section of the conditional can not be null')
+				throw new AppError('the else section of the conditional can not be null')
 			}
 
 			// importat : actions are not valid inside the conditional, they can only be executed on the steps
 			if (!procesNode.if.then.some(action => action.type === "NEXT" || action.type === "LINK")) {
-				throw new Error('there is no way to get out of the "then" block inside ' + procesNode.id)
+				throw new AppError('there is no way to get out of the "then" block inside ' + procesNode.id)
 			}
 
 			if (!procesNode.if.else.some(action => action.type === "NEXT" || action.type === "LINK")) {
-				throw new Error('there is no way to get out of the "else" block inside ' + procesNode.id)
+				throw new AppError('there is no way to get out of the "else" block inside ' + procesNode.id)
 			}
 
 
@@ -143,7 +144,7 @@ class BussinesLogicParser {
 		);
 
 		if (Array.from(allEdges).filter(edgeTo => edgeTo === "END").length !== 1) {
-			throw new Error('thers is no END pointer in the bussinesLogicFile or there are more than one END ref')
+			throw new AppError('thers is no END pointer in the bussinesLogicFile or there are more than one END ref')
 		}
 
 		Array.from(nodeIDs.values()).map((nodeId, index) => {
@@ -151,7 +152,7 @@ class BussinesLogicParser {
 			const isEntry = index === 0;
 
 			if (!isEntry && !hasEdge) {
-				throw new Error('There is a node without ref: ' + nodeId);
+				throw new AppError('There is a node without ref: ' + nodeId);
 			}
 			return { nodeId, hasEdge, isEntry };
 		});
@@ -173,7 +174,7 @@ class BussinesLogicParser {
 				.filter(item => item?.type === "ACTION")
 				.forEach(item => {
 					if (!actionsList.has(item.action)) {
-						throw new Error('this action ' + item.action + ' does not exist inside ' + procesNode.id);
+						throw new AppError('this action ' + item.action + ' does not exist inside ' + procesNode.id);
 					}
 				})
 		})
@@ -193,7 +194,7 @@ class BussinesLogicParser {
 			// TODO implement validation for the params in the actions steps
 			this.validateActionsExist(result.data);
 		} else {
-			throw new Error("file structre is wrong review the documentation")
+			throw new AppError("file structre is wrong review the documentation")
 		}
 
 	}

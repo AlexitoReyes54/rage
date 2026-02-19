@@ -1,6 +1,7 @@
 import type { StateName, Observer, Transition, StateNotification, AllowedSlotValues, SlotsObject, SnapshotObject } from "./types";
 import StatesRegistry from "./StatesRegistry";
 import EventManager from "./EventManager";
+import AppError from "../Errors/AppError";
 
 class StateMachine implements Observer {
 	private currentState: StateName;
@@ -50,7 +51,7 @@ class StateMachine implements Observer {
 		for (const [key, value] of Object.entries(slotsObject)) {
 			if (!validTypes.includes(typeof value)) {
 				console.error("error in types ")
-				throw new Error('error in types')
+				throw new AppError('error in types')
 			}
 			this.slotStorage.set(key, value)
 		}
@@ -59,12 +60,12 @@ class StateMachine implements Observer {
 	updateSingleSlot(slotName: string, slotValue: AllowedSlotValues) {
 		if (!this.slotStorage.has(slotName)) {
 			console.error('this slot dont exists')
-			throw new Error("this slot dont exits")
+			throw new AppError("this slot dont exits")
 		}
 		const slotCurrentValue = this.slotStorage.get(slotName)
 		if (typeof slotCurrentValue !== typeof slotValue) {
 			console.error('the value is not the correct, the correct type is:', typeof slotCurrentValue)
-			throw new Error('the value is not the correct, the correct type is:' + typeof slotCurrentValue)
+			throw new AppError('the value is not the correct, the correct type is:' + typeof slotCurrentValue)
 		}
 
 		this.slotStorage.set(slotName, slotValue)
@@ -82,7 +83,7 @@ class StateMachine implements Observer {
 
 		if (!transitionObject) {
 			console.error("this is not a valid move")
-			throw new Error("this is not a valid move")
+			throw new AppError("this is not a valid move")
 		}
 
 		transitionObject.event();
@@ -113,8 +114,8 @@ class StateMachine implements Observer {
 	recoverFromSnapshot(snapshot: string) {
 		try {
 			const data = JSON.parse(snapshot);
-			if (!data || typeof data !== 'object') throw new Error("Invalid format");
-			if (!this.statesRegistry.isValid(data.state)) throw new Error(`State ${data.state} unregistered`);
+			if (!data || typeof data !== 'object') throw new AppError("Invalid format");
+			if (!this.statesRegistry.isValid(data.state)) throw new AppError(`State ${data.state} unregistered`);
 
 			if (data.slots && typeof data.slots === 'object') {
 				this.slotStorage.clear();
@@ -142,12 +143,12 @@ class StateMachine implements Observer {
 
 			if (uniqueTransitionNames.size !== transitionNames.length) {
 				console.error('there 2 transition with the same "name" value')
-				throw new Error('there 2 transition with the same "name" value')
+				throw new AppError('there 2 transition with the same "name" value')
 			}
 
 			if (uniqueTransitionTo.size !== transitionsTo.length) {
 				console.error('there 2 transition with the same "to" value ')
-				throw new Error('there 2 transition with the same "to" value ')
+				throw new AppError('there 2 transition with the same "to" value ')
 			}
 		}
 	}
@@ -166,12 +167,12 @@ class StateMachine implements Observer {
 
 	private validateInput(initialState: StateName, transitions: Transition[]) {
 		if (!this.statesRegistry.isValid(initialState)) {
-			throw new Error(`Invalid initial state: ${initialState}`);
+			throw new AppError(`Invalid initial state: ${initialState}`);
 		}
 
 		for (const t of transitions) {
 			if (!this.statesRegistry.isValid(t.from) || !this.statesRegistry.isValid(t.to)) {
-				throw new Error(`Transition "${t.name}" references an unregistered state.`);
+				throw new AppError(`Transition "${t.name}" references an unregistered state.`);
 			}
 
 		}
