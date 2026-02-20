@@ -69,20 +69,32 @@ function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: 
 	}
 }
 
+
+interface StepRegistryRecord {
+	steps: Record<string, StepPropertyTypes>
+}
+
+
 class StepRegistry {
-	// Key format: "filename|stepName"
-	private static storage = new Map<string, StepPropertyTypes>();
+	private static storage: Record<string, StepRegistryRecord> = {};
 
 	static save(fileName: string, stepName: string, data: StepPropertyTypes) {
-		this.storage.set(`${fileName}|${stepName}`, data);
+		if (!this.storage[fileName]) {
+			this.storage[fileName] = { steps: {} };
+		}
+		this.storage[fileName].steps[stepName] = data;
 	}
 
-	static get(fileName: string, stepName: string): StepPropertyTypes | undefined {
-		return this.storage.get(`${fileName}|${stepName}`);
+	static getAllStepsFromDoc(fileName: string) {
+		return this.storage[fileName];
+	}
+
+	static getSingleStepFromDoc(fileName: string, stepName: string) {
+		return this.storage[fileName]?.steps[stepName]
 	}
 
 	static getStorage() {
-		return this.storage;
+		return this.storage
 	}
 }
 
@@ -105,6 +117,7 @@ class BussinesLogicTransformer {
 		let workflowFile = new BussinesLogicParser().parserYamlIntoProcessFile(yamlFileContent);
 		this.bussinesLogicMemoryStorage.set(yamlFileName, workflowFile);
 		this.transformIntoNodeInfoMap(workflowFile, yamlFileName);
+		this.transformIntoStateMachine(workflowFile, yamlFileName)
 	}
 
 	static transformIntoNodeInfoMap(workflow: Workflow, fileName: string) {
@@ -129,11 +142,36 @@ class BussinesLogicTransformer {
 				StepRegistry.save(fileName, stepName, value)
 			})
 		})
+
 	}
 
-	static transformIntoStateMachine() {
+	static transformIntoStateMachine(workflowFile: Workflow, yamlFileName: string) {
 		// TODO implement create of state machine based on flow files
+		/*
+		let states = ['solid', 'liquid', 'gas']
+		let transitions: Transition[] = [
+			{ name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
+			{ name: 'freeze', from: 'liquid', to: 'solid', event: mockEvent },
+			{ name: 'vaporize', from: 'liquid', to: 'gas', event: mockEvent },
+			{ name: 'condense', from: 'gas', to: 'liquid', event: mockEvent }
+		]
+		let slots = {
+			name: "Juan",
+			age: 19,
+			canDrink: true,
+		}
+		* */
+
+
+		// 1. get all the states
+		// 2. get al the transitions
+		// 3. get all the slots 
+
+
+
+
 	}
+
 }
 
 export default BussinesLogicTransformer;

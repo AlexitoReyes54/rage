@@ -2,6 +2,7 @@ import type { StateName, Observer, Transition, StateNotification, AllowedSlotVal
 import StatesRegistry from "./StatesRegistry";
 import EventManager from "./EventManager";
 import AppError from "../Errors/AppError";
+import visualizeWorkflow from "./utils/visualizeWorkflow";
 
 class StateMachine implements Observer {
 	private currentState: StateName;
@@ -177,7 +178,10 @@ class StateMachine implements Observer {
 
 		}
 	}
+
+
 }
+
 
 let mockEvent = () => null;
 let states = ['solid', 'liquid', 'gas']
@@ -212,5 +216,13 @@ let action2 = machine.getPossibleTransitions()[0]?.name || ""
 console.log("change", action2)
 machine.transition(action2);
 
+// Ejemplo de uso con tu data:
+const workflow = new Map([
+	["solid", [{ name: "melt", to: "liquid" }]],
+	["liquid", [{ name: "freeze", to: "solid" }, { name: "vaporize", to: "gas" }]],
+	["gas", [{ name: "condense", to: "liquid" }]]
+]);
+
+visualizeWorkflow(workflow);
 export default StateMachine;
 

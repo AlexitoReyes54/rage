@@ -21,10 +21,6 @@ async function run() {
 	let list = BussinesLogicTransformer.getLogicStorate()
 	let ref = BussinesLogicTransformer.getReferenceNodeInfo()
 
-	ref.forEach((item, index) => {
-		//console.log(item);
-	})
-
 }
 
 run();
