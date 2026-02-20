@@ -5,8 +5,61 @@
 // i need to initiace and return a working state machine for the engine
 
 import BussinesLogicParser from "../BussinesLogicParser/BussinesLogicParser";
+import type { Transition } from "../StateMachine/types";
 import { type Workflow, type StepType, SlotTypes } from "../BussinesLogicParser/types";
 import AppError from "../Errors/AppError";
+
+/*
+let transitions: Transition[] = [
+		{ name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
+		{ name: 'freeze', from: 'liquid', to: 'solid', event: mockEvent },
+		{ name: 'vaporize', from: 'liquid', to: 'gas', event: mockEvent },
+		{ name: 'condense', from: 'gas', to: 'liquid', event: mockEvent }
+	]
+	*/
+
+
+function getFlowTransitions(docSteps: StepRegistryRecord): Transition[] {
+	const stepsNames = Object.keys(docSteps.steps)
+
+	let x = stepsNames.map((currentStepName, index) => {
+		console.log(currentStepName);
+		console.log(docSteps.steps[currentStepName]);
+		const currentStep = docSteps.steps[currentStepName];
+		const nextStepName = stepsNames[index + 1];
+
+		if (!nextStepName && index + 1 === stepsNames.length) {
+			//exit this is the las item
+			return;
+		} else if (!nextStepName) {
+			throw new AppError('the next step was not found')
+		}
+
+		const nextStep = docSteps.steps[nextStepName]
+
+		// TODO implement the transtion array generation for the state machiene
+		switch (docSteps.steps[currentStepName]?.type) {
+			case 'LINK':
+				return 'link'
+			case 'NEXT':
+				return 'next'
+			case 'ACTION':
+				return {
+					name: `from_${currentStepName}_to_${nextStepName}`
+				}
+			case 'COLLECT':
+				return {
+					name: `from_${currentStepName}_to_${nextStepName}`
+				}
+			default:
+				break;
+		}
+		console.log('-----------------');
+	})
+
+	console.log(x);
+	return [];
+}
 
 function formatStepName(step: StepType) {
 	switch (step.type) {
@@ -163,12 +216,20 @@ class BussinesLogicTransformer {
 		* */
 
 
-		// 1. get all the states
+		// 1. get all the states -- done 
 		// 2. get al the transitions
 		// 3. get all the slots 
 
 
+		let docSteps = StepRegistry.getAllStepsFromDoc(yamlFileName)
 
+		if (!docSteps) {
+			throw new AppError('error while getting steps')
+		}
+
+		const flowStates = Object.keys(docSteps?.steps)
+		const transitions = getFlowTransitions(docSteps);
+		//console.log(docSteps);
 
 	}
 
