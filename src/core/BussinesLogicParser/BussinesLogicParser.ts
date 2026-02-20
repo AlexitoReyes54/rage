@@ -23,6 +23,7 @@ class BussinesLogicParser {
 	slotsStorage: Map<string, Slot[]> = new Map();
 	slotsObjStore: Map<string, CollectObj> = new Map();
 
+
 	validateSlots(file: Workflow) {
 		let slotCollections = new Map<string, Slot[]>();
 		file.process
@@ -177,7 +178,7 @@ class BussinesLogicParser {
 		})
 	}
 
-	loadYAML(yamlFile: string) {
+	parserYamlIntoProcessFile(yamlFile: string) {
 		const result = ProcessFile.safeParse(YAML.parse(yamlFile))
 		if (result.success) {
 			this.validateSlots(result.data);
@@ -195,14 +196,12 @@ class BussinesLogicParser {
 		}
 
 	}
+
+
+
 }
 
 
-Bun.file("./init.yml").text().then(res => {
-	let parser = new BussinesLogicParser();
-	parser.loadYAML(res)
-	console.log(res);
-}).catch(e => console.log("error manito", e.message));
 
 
 export default BussinesLogicParser;
