@@ -19,12 +19,22 @@ let transitions: Transition[] = [
 	*/
 
 
+// what i have to do now ????
+// well, well, well... 
+// i need to determine how im going to build the transitions 
+// i have some basic rules for that but that is not enough
+// lets map the issue and then work with that 
+//
+// 1. what info i have now 
+// 2. how i want to map this out 
 function getFlowTransitions(docSteps: StepRegistryRecord): Transition[] {
-	const stepsNames = Object.keys(docSteps.steps)
+	const stepsNames = Object.keys(docSteps.steps) // here the names and references 
 
-	let x = stepsNames.map((currentStepName, index) => {
+	let res = stepsNames.map((currentStepName, index) => { // here i loop that so i see each step
 		console.log(currentStepName);
 		console.log(docSteps.steps[currentStepName]);
+
+		// this is some kind of logic to know what the next node is 
 		const currentStep = docSteps.steps[currentStepName];
 		const nextStepName = stepsNames[index + 1];
 
@@ -38,6 +48,8 @@ function getFlowTransitions(docSteps: StepRegistryRecord): Transition[] {
 		const nextStep = docSteps.steps[nextStepName]
 
 		// TODO implement the transtion array generation for the state machiene
+		//
+		// here it seems that i have to return the obj that represents where the node can point to 
 		switch (docSteps.steps[currentStepName]?.type) {
 			case 'LINK':
 				return 'link'
@@ -57,7 +69,7 @@ function getFlowTransitions(docSteps: StepRegistryRecord): Transition[] {
 		console.log('-----------------');
 	})
 
-	console.log(x);
+	console.log(res);
 	return [];
 }
 
@@ -174,26 +186,28 @@ class BussinesLogicTransformer {
 	}
 
 	static transformIntoNodeInfoMap(workflow: Workflow, fileName: string) {
+
 		workflow.process.forEach(node => {
+			if (node.if) {
+				node.if.then.forEach(step => {
+					let stepName = `${node.id}_if_then_${formatStepName(step)}`
+					let value = getStepTypeProperties(step, node.id, node.description)
+					StepRegistry.save(fileName, stepName, value)
+				})
+
+				node.if.else.forEach(step => {
+					let stepName = `${node.id}_if_else_${formatStepName(step)}`
+					let value = getStepTypeProperties(step, node.id, node.description)
+					StepRegistry.save(fileName, stepName, value)
+				})
+			}
+
 			node.steps.forEach(step => {
 				let stepName = `${node.id}_${formatStepName(step)}`
 				let value = getStepTypeProperties(step, node.id, node.description)
 				StepRegistry.save(fileName, stepName, value)
 			})
 
-			if (!node.if) { return; }
-
-			node.if.then.forEach(step => {
-				let stepName = `${node.id}_if_then_${formatStepName(step)}`
-				let value = getStepTypeProperties(step, node.id, node.description)
-				StepRegistry.save(fileName, stepName, value)
-			})
-
-			node.if.else.forEach(step => {
-				let stepName = `${node.id}_if_else_${formatStepName(step)}`
-				let value = getStepTypeProperties(step, node.id, node.description)
-				StepRegistry.save(fileName, stepName, value)
-			})
 		})
 
 	}
@@ -224,7 +238,7 @@ class BussinesLogicTransformer {
 		let docSteps = StepRegistry.getAllStepsFromDoc(yamlFileName)
 
 		if (!docSteps) {
-			throw new AppError('error while getting steps')
+			throw new AppError('Error while getting steps')
 		}
 
 		const flowStates = Object.keys(docSteps?.steps)
