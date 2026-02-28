@@ -90,6 +90,7 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 
 		/// TODO implement the logic to point to the next node when building the transition 
 		// list for the state machine 
+		// by the way i think next node are not neccesarry anymore 
 
 		if (thenSteps) {
 			transitions.push({
