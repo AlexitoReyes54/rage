@@ -6,73 +6,104 @@
 
 import BussinesLogicParser from "../BussinesLogicParser/BussinesLogicParser";
 import type { Transition } from "../StateMachine/types";
-import { type Workflow, type StepType, SlotTypes } from "../BussinesLogicParser/types";
+import { type Workflow, type StepType, SlotTypes, type LinkStepType } from "../BussinesLogicParser/types";
 import AppError from "../Errors/AppError";
 
-/*
-let transitions: Transition[] = [
-		{ name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
-		{ name: 'freeze', from: 'liquid', to: 'solid', event: mockEvent },
-		{ name: 'vaporize', from: 'liquid', to: 'gas', event: mockEvent },
-		{ name: 'condense', from: 'gas', to: 'liquid', event: mockEvent }
-	]
-	*/
-
-
-// what i have to do now ????
-// well, well, well... 
-// i need to determine how im going to build the transitions 
-// i have some basic rules for that but that is not enough
-// lets map the issue and then work with that 
-//
-// 1. what info i have now 
-// 2. how i want to map this out 
-function getFlowTransitions(docSteps: StepRegistryRecord): Transition[] {
-	const stepsNames = Object.keys(docSteps.steps) // here the names and references 
-
-	let res = stepsNames.map((currentStepName, index) => { // here i loop that so i see each step
-		console.log(currentStepName);
-		console.log(docSteps.steps[currentStepName]);
-
-		// this is some kind of logic to know what the next node is 
-		const currentStep = docSteps.steps[currentStepName];
-		const nextStepName = stepsNames[index + 1];
-
-		if (!nextStepName && index + 1 === stepsNames.length) {
-			//exit this is the las item
-			return;
-		} else if (!nextStepName) {
-			throw new AppError('the next step was not found')
-		}
-
-		const nextStep = docSteps.steps[nextStepName]
-
-		// TODO implement the transtion array generation for the state machiene
-		//
-		// here it seems that i have to return the obj that represents where the node can point to 
-		switch (docSteps.steps[currentStepName]?.type) {
-			case 'LINK':
-				return 'link'
-			case 'NEXT':
-				return 'next'
-			case 'ACTION':
-				return {
-					name: `from_${currentStepName}_to_${nextStepName}`
-				}
-			case 'COLLECT':
-				return {
-					name: `from_${currentStepName}_to_${nextStepName}`
-				}
-			default:
-				break;
-		}
-		console.log('-----------------');
-	})
-
-	console.log(res);
-	return [];
+interface NodeStuctureForStateMachine {
+	conditional: {
+		then: string[];
+		else: string[];
+	};
+	steps: string[];
 }
 
+type StatesStructure = Record<string, NodeStuctureForStateMachine>
+
+
+
+function isThisAPointer(stateName: string) {
+	if (stateName.includes("LINK")) {
+		return true;
+	}
+	return false;
+}
+
+const getStepItLinks = (linkStep: string) => linkStep.split('_LINK_')[1];
+
+function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
+	let transitions: any[] = [];
+	const nodes = Object.keys(flowStructure);
+	const linkStep = (currentStepsSet: string[], firstStepFromNextSet: string) => {
+		currentStepsSet.forEach((step, i) => {
+			const nextStep = currentStepsSet[i + 1] || firstStepFromNextSet;
+			const destination: string | undefined = isThisAPointer(step) ?
+				getStepItLinks(step) :
+				nextStep;
+
+			if (!destination) {
+				throw new AppError("error trying to build state mahine transitions")
+			}
+
+			transitions.push({
+				from: step,
+				to: destination
+			})
+		})
+	}
+
+
+	nodes.forEach((node, nodeIndex) => {
+		let nodeInfo = flowStructure[node];
+
+		if (!nodeInfo) {
+			throw new AppError("error happend while trying to build state machine from bussine logic file");
+		}
+
+		let { conditional, steps } = nodeInfo;
+
+		if (!steps[0]) {
+			throw new AppError("something went wrong with the steps parsing from the bussines logic file");
+		}
+		// { name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
+		if (conditional.then) {
+			linkStep(conditional.then, steps[0])
+		}
+
+		if (conditional.else) {
+			linkStep(conditional.else, steps[0])
+		}
+
+		// only if there is next item is undefined dont add transitions
+		let nextNode = nodes[nodeIndex + 1];
+		if (!nextNode) {
+			throw new AppError("something went wrong with the steps parsing from the bussines logic file");
+		}
+
+		// cuando voy a siguiente nodo puedo ir al then o al else
+		// si hay condicionales entonces voy a los conditionals
+		// si no hay condicionales voy a los steps 
+
+		// this logic that goes here should be inside the link functino in the linkstep function
+		let thenSteps = flowStructure[nextNode]?.conditional.then;
+		let elseSteps = flowStructure[nextNode]?.conditional.else;
+
+
+		/// TODO implement the logic to point to the next node when building the transition 
+		// list for the state machine 
+
+		if (thenSteps) {
+			transitions.push({
+				from: "",
+				to: ""
+			})
+		}
+
+		//linkStep(steps, x)
+	})
+
+	console.log("transitions", transitions);
+	return [];
+}
 function formatStepName(step: StepType) {
 	switch (step.type) {
 		case "LINK":
@@ -134,28 +165,43 @@ function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: 
 	}
 }
 
-
 interface StepRegistryRecord {
-	steps: Record<string, StepPropertyTypes>
+	nodes: Record<string, StepPropertyTypes[]>
 }
 
+let l: LinkStepProperties = {
+	link: 'some',
+	type: "LINK",
+	nodeId: "",
+	nodeDescription: ""
+}
 
+let t: Record<string, StepRegistryRecord> = {
+	"flow": {
+		nodes: {
+			"greet": [],
+			ask: [l, l, l, l],
+			out: []
+		}
+	}
+}
+
+// the data here has to be structured better
 class StepRegistry {
 	private static storage: Record<string, StepRegistryRecord> = {};
 
-	static save(fileName: string, stepName: string, data: StepPropertyTypes) {
+	static save(fileName: string, nodeName: string, data: StepPropertyTypes) {
 		if (!this.storage[fileName]) {
-			this.storage[fileName] = { steps: {} };
+			this.storage[fileName] = { nodes: {} };
 		}
-		this.storage[fileName].steps[stepName] = data;
+		if (!this.storage[fileName].nodes[nodeName]) {
+			this.storage[fileName].nodes[nodeName] = [];
+		}
+		this.storage[fileName].nodes[nodeName].push(data)
 	}
 
 	static getAllStepsFromDoc(fileName: string) {
 		return this.storage[fileName];
-	}
-
-	static getSingleStepFromDoc(fileName: string, stepName: string) {
-		return this.storage[fileName]?.steps[stepName]
 	}
 
 	static getStorage() {
@@ -181,7 +227,7 @@ class BussinesLogicTransformer {
 		}
 		let workflowFile = new BussinesLogicParser().parserYamlIntoProcessFile(yamlFileContent);
 		this.bussinesLogicMemoryStorage.set(yamlFileName, workflowFile);
-		this.transformIntoNodeInfoMap(workflowFile, yamlFileName);
+		//this.transformIntoNodeInfoMap(workflowFile, yamlFileName);
 		this.transformIntoStateMachine(workflowFile, yamlFileName)
 	}
 
@@ -190,22 +236,23 @@ class BussinesLogicTransformer {
 		workflow.process.forEach(node => {
 			if (node.if) {
 				node.if.then.forEach(step => {
-					let stepName = `${node.id}_if_then_${formatStepName(step)}`
+					//let stepName = `${node.id}_if_then_${formatStepName(step)}`
 					let value = getStepTypeProperties(step, node.id, node.description)
-					StepRegistry.save(fileName, stepName, value)
+					// the problem is here the way data is structured is bad so the problem is hard to solve
+					StepRegistry.save(fileName, node.id, value)
 				})
 
 				node.if.else.forEach(step => {
-					let stepName = `${node.id}_if_else_${formatStepName(step)}`
+					//let stepName = `${node.id}_if_else_${formatStepName(step)}`
 					let value = getStepTypeProperties(step, node.id, node.description)
-					StepRegistry.save(fileName, stepName, value)
+					StepRegistry.save(fileName, node.id, value)
 				})
 			}
 
 			node.steps.forEach(step => {
-				let stepName = `${node.id}_${formatStepName(step)}`
+				//let stepName = `${node.id}_${formatStepName(step)}`
 				let value = getStepTypeProperties(step, node.id, node.description)
-				StepRegistry.save(fileName, stepName, value)
+				StepRegistry.save(fileName, node.id, value)
 			})
 
 		})
@@ -230,19 +277,57 @@ class BussinesLogicTransformer {
 		* */
 
 
-		// 1. get all the states -- done 
-		// 2. get al the transitions
+		// 2. get all the transitions
 		// 3. get all the slots 
+		let buffer: StatesStructure = {};
+		workflowFile.process.forEach(item => {
+
+			buffer[item.id] = {
+				conditional: {
+					then: [],
+					else: []
+				},
+				steps: []
+			}
+
+			item.if?.then.forEach(step => {
+				let stepName = `${item.id}_if_then_${formatStepName(step)}`
+				buffer[item.id]?.conditional.then.push(stepName);
+
+			})
+
+			item.if?.else.forEach(step => {
+				let stepName = `${item.id}_if_else_${formatStepName(step)}`
+				buffer[item.id]?.conditional.else.push(stepName);
+			})
+
+			item.steps.forEach(step => {
+				let stepName = `${item.id}_${formatStepName(step)}`
+				buffer[item.id]?.steps.push(stepName);
+			})
+
+		})
+		console.log(buffer);
 
 
-		let docSteps = StepRegistry.getAllStepsFromDoc(yamlFileName)
+		console.log('--------------------------');
 
-		if (!docSteps) {
-			throw new AppError('Error while getting steps')
+		try {
+			getFlowTransitions(buffer)
+		} catch (error) {
+			throw new AppError("error setting the transitions")
 		}
 
-		const flowStates = Object.keys(docSteps?.steps)
-		const transitions = getFlowTransitions(docSteps);
+		// from & to 	
+		// { name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
+
+		//	let docSteps = StepRegistry.getAllStepsFromDoc(yamlFileName)
+		//console.log(doc);
+		//console.log(docSteps);
+
+
+		//const flowStates = Object.keys(docSteps?.steps)
+		//const transitions = getFlowTransitions(docSteps);
 		//console.log(docSteps);
 
 	}
