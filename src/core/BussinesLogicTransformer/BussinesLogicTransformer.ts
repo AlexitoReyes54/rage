@@ -1,6 +1,7 @@
 // steps
 // - using that pass it into the state machiene class so it returns the thing i need 
 //   for the engine
+//
 
 // i need to initiace and return a working state machine for the engine
 
@@ -8,6 +9,9 @@ import BussinesLogicParser from "../BussinesLogicParser/BussinesLogicParser";
 import type { Transition } from "../StateMachine/types";
 import { type Workflow, type StepType, SlotTypes, type LinkStepType } from "../BussinesLogicParser/types";
 import AppError from "../Errors/AppError";
+import StateMachine from "../StateMachine/StateMachine";
+import visualizeWorkflow from "../StateMachine/utils/visualizeWorkflow";
+import { which } from "bun";
 
 interface NodeStuctureForStateMachine {
 	conditional: {
@@ -20,34 +24,77 @@ interface NodeStuctureForStateMachine {
 type StatesStructure = Record<string, NodeStuctureForStateMachine>
 
 
-
 function isThisAPointer(stateName: string) {
+	if (stateName.includes("END")) {
+		return false;
+	}
+
 	if (stateName.includes("LINK")) {
+		return true;
+	}
+
+	return false;
+}
+function isTheEnd(stepName: type) {
+	if (stepName.includes("END")) {
 		return true;
 	}
 	return false;
 }
 
+function getAllLinkStepDestinations(nextNode: NodeStuctureForStateMachine): string[] {
+	let destinations: string[] = [];
+
+	let thenSteps = nextNode.conditional.then;
+	let elseSteps = nextNode.conditional.else;
+	let commonSteps = nextNode.steps;
+
+	if (thenSteps.length > 0 && thenSteps[0]) {
+		destinations.push(thenSteps[0])
+	}
+
+	if (elseSteps.length > 0 && elseSteps[0]) {
+		destinations.push(elseSteps[0])
+	}
+
+	if (commonSteps.length > 0 && commonSteps[0]) {
+		destinations.push(commonSteps[0])
+	}
+
+	return destinations;
+}
+
+/// this required me to make some refactor this is not workin
 const getStepItLinks = (linkStep: string) => linkStep.split('_LINK_')[1];
 
+const generateTransitionName = (from: string, to: string) => `from_${from}_to_${to}`;
+
 function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
-	let transitions: any[] = [];
+	const emptyEvent = () => null;
+	let transitions: Transition[] = [];
 	const nodes = Object.keys(flowStructure);
-	const linkStep = (currentStepsSet: string[], firstStepFromNextSet: string) => {
+	const linkStep = (currentStepsSet: string[], firstStepFromNextSet: string, nextNode: NodeStuctureForStateMachine) => {
 		currentStepsSet.forEach((step, i) => {
 			const nextStep = currentStepsSet[i + 1] || firstStepFromNextSet;
-			const destination: string | undefined = isThisAPointer(step) ?
-				getStepItLinks(step) :
-				nextStep;
+			const destinations: string[] | undefined = [];
 
-			if (!destination) {
-				throw new AppError("error trying to build state mahine transitions")
+			if (isThisAPointer(step)) {
+				getAllLinkStepDestinations(nextNode)
+			} else {
+				destinations.push(nextStep);
 			}
 
-			transitions.push({
+			if (!destinations) {
+				throw new AppError("error parsing links inside conditional while building state machie")
+			}
+
+			destinations.forEach(destination => transitions.push({
+				name: generateTransitionName(step, destination),
 				from: step,
-				to: destination
-			})
+				to: destination,
+				event: emptyEvent
+			}));
+
 		})
 	}
 
@@ -59,51 +106,61 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 			throw new AppError("error happend while trying to build state machine from bussine logic file");
 		}
 
+		let nextNode = nodes[nodeIndex + 1];
+
+		if (!nextNode && nodes.length - 1 !== nodeIndex) {
+			throw new AppError("there is an error pointing to the next node and state machine building");
+		}
+
 		let { conditional, steps } = nodeInfo;
 
 		if (!steps[0]) {
-			throw new AppError("something went wrong with the steps parsing from the bussines logic file");
-		}
-		// { name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
-		if (conditional.then) {
-			linkStep(conditional.then, steps[0])
+			throw new AppError("something went wrong with the steps parsing from the bussines logic file steps");
 		}
 
-		if (conditional.else) {
-			linkStep(conditional.else, steps[0])
+		if (conditional.then && nextNode) {
+			linkStep(conditional.then, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
 		}
 
-		// only if there is next item is undefined dont add transitions
-		let nextNode = nodes[nodeIndex + 1];
-		if (!nextNode) {
-			throw new AppError("something went wrong with the steps parsing from the bussines logic file");
+		if (conditional.else && nextNode) {
+			linkStep(conditional.else, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
 		}
 
-		// cuando voy a siguiente nodo puedo ir al then o al else
-		// si hay condicionales entonces voy a los conditionals
-		// si no hay condicionales voy a los steps 
+		for (let i = 0; i < steps.length; i++) {
+			const currentStep = steps[i];
+			const nextStep = steps[i + 1];
 
-		// this logic that goes here should be inside the link functino in the linkstep function
-		let thenSteps = flowStructure[nextNode]?.conditional.then;
-		let elseSteps = flowStructure[nextNode]?.conditional.else;
+			if (!currentStep || (!nextStep && steps.length - 1 !== i)) {
+				throw new AppError('error happended while reading steps and turning them into state machine transitions')
+			}
 
+			if (isThisAPointer(currentStep) && nextNode) {
+				const destinations = getAllLinkStepDestinations(flowStructure[nextNode] as NodeStuctureForStateMachine);
+				destinations.forEach(destination => transitions.push({
+					from: currentStep,
+					to: destination,
+					name: generateTransitionName(currentStep, destination),
+					event: emptyEvent
+				}));
+			} else {
 
-		/// TODO implement the logic to point to the next node when building the transition 
-		// list for the state machine 
-		// by the way i think next node are not neccesarry anymore 
+				if (isTheEnd(currentStep)) {
+					return;
+				}
 
-		if (thenSteps) {
-			transitions.push({
-				from: "",
-				to: ""
-			})
+				transitions.push({
+					from: currentStep,
+					to: nextStep,
+					name: generateTransitionName(currentStep, nextStep),
+					event: emptyEvent
+				})
+			}
 		}
 
-		//linkStep(steps, x)
 	})
 
-	console.log("transitions", transitions);
-	return [];
+	//console.log("transitions", transitions);
+	return transitions;
 }
 function formatStepName(step: StepType) {
 	switch (step.type) {
@@ -261,15 +318,8 @@ class BussinesLogicTransformer {
 	}
 
 	static transformIntoStateMachine(workflowFile: Workflow, yamlFileName: string) {
-		// TODO implement create of state machine based on flow files
+
 		/*
-		let states = ['solid', 'liquid', 'gas']
-		let transitions: Transition[] = [
-			{ name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
-			{ name: 'freeze', from: 'liquid', to: 'solid', event: mockEvent },
-			{ name: 'vaporize', from: 'liquid', to: 'gas', event: mockEvent },
-			{ name: 'condense', from: 'gas', to: 'liquid', event: mockEvent }
-		]
 		let slots = {
 			name: "Juan",
 			age: 19,
@@ -278,9 +328,9 @@ class BussinesLogicTransformer {
 		* */
 
 
-		// 2. get all the transitions
 		// 3. get all the slots 
 		let buffer: StatesStructure = {};
+		let states: string[] = [];
 		workflowFile.process.forEach(item => {
 
 			buffer[item.id] = {
@@ -293,43 +343,40 @@ class BussinesLogicTransformer {
 
 			item.if?.then.forEach(step => {
 				let stepName = `${item.id}_if_then_${formatStepName(step)}`
+				states.push(stepName);
 				buffer[item.id]?.conditional.then.push(stepName);
 
 			})
 
 			item.if?.else.forEach(step => {
 				let stepName = `${item.id}_if_else_${formatStepName(step)}`
+				states.push(stepName);
 				buffer[item.id]?.conditional.else.push(stepName);
 			})
 
 			item.steps.forEach(step => {
 				let stepName = `${item.id}_${formatStepName(step)}`
+				states.push(stepName);
 				buffer[item.id]?.steps.push(stepName);
 			})
 
 		})
-		console.log(buffer);
-
 
 		console.log('--------------------------');
-
+		// TODO re-think this section over here
 		try {
 			getFlowTransitions(buffer)
 		} catch (error) {
+			console.log(error);
 			throw new AppError("error setting the transitions")
 		}
 
-		// from & to 	
-		// { name: 'melt', from: 'solid', to: 'liquid', event: mockEvent },
+		let transitions = getFlowTransitions(buffer)
 
-		//	let docSteps = StepRegistry.getAllStepsFromDoc(yamlFileName)
-		//console.log(doc);
-		//console.log(docSteps);
-
-
-		//const flowStates = Object.keys(docSteps?.steps)
-		//const transitions = getFlowTransitions(docSteps);
-		//console.log(docSteps);
+		// TODO change the first param in the future this is just for testing 
+		let machine = new StateMachine(states[0] || "", states, transitions)
+		let mapa = machine.getStatesGrahp();
+		visualizeWorkflow(mapa)
 
 	}
 
