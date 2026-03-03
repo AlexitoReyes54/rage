@@ -4,6 +4,7 @@ import BussinesLogicTransformer from "./src/core/BussinesLogicTransformer/Bussin
 import AppError from "./src/core/Errors/AppError";
 import LLmProviderManager, { type ResponseInput } from "./src/core/LlmProviderManager/LlmProviderManager";
 import z from "zod";
+import createResponseRephraserPrompt from "./src/core/LlmProviderManager/promts/responseRephraser";
 
 async function run() {
 	//const files = await readdir('./flows');
@@ -33,14 +34,22 @@ async function run() {
 		model: 'gpt-4o-2024-08-06'
 	});
 
+	let p = createResponseRephraserPrompt({
+		topic: 'programacion',
+		concept: 'lua'
+	})
+	console.log(p);
+
 	let inputs: ResponseInput[] = [
 		{
 			role: 'user',
-			content: 'are you good at coding ? '
+			content: p
 		},
 	]
 
-	let x = await llmProviderManager.askLLm(inputs, CalendarEvent);
+
+	let x = await llmProviderManager.askLLm(inputs);
+	//let x = await llmProviderManager.askLLm(inputs, CalendarEvent);
 	console.log(x.output_text);
 }
 
