@@ -199,21 +199,21 @@ let slots = {
 let machine = new StateMachine('liquid', states, transitions, slots)
 // TODO the flow needs to act as a guard for the slots 
 machine.onStateChange = (state) => {
-	console.log("this changed to: ", state.state)
+	//console.log("this changed to: ", state.state)
 }
-console.log("state", machine.getAllStates());
-console.log("ini", machine.getCurrentState());
-console.log("moves", machine.getPossibleTransitions());
+//console.log("state", machine.getAllStates());
+//console.log("ini", machine.getCurrentState());
+//console.log("moves", machine.getPossibleTransitions());
 
 let action1 = machine.getPossibleTransitions()[0]?.name || ""
-console.log("change", action1);
+//console.log("change", action1);
 machine.transition(action1);
-console.log(machine.getAllSlots())
+//console.log(machine.getAllSlots())
 machine.updateSingleSlot('name', 'elias')
-console.log(machine.getAllSlots())
+//console.log(machine.getAllSlots())
 
 let action2 = machine.getPossibleTransitions()[0]?.name || ""
-console.log("change", action2)
+//console.log("change", action2)
 machine.transition(action2);
 
 // Ejemplo de uso con tu data:
@@ -223,6 +223,6 @@ const workflow = new Map([
 	["gas", [{ name: "condense", to: "liquid" }]]
 ]);
 
-visualizeWorkflow(workflow);
+//visualizeWorkflow(workflow);
 export default StateMachine;
 

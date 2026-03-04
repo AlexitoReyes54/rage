@@ -5,23 +5,34 @@ import AppError from "./src/core/Errors/AppError";
 import LLmProviderManager, { type ResponseInput } from "./src/core/LlmProviderManager/LlmProviderManager";
 import z from "zod";
 import createResponseRephraserPrompt from "./src/core/LlmProviderManager/promts/responseRephraser";
+import DialogEngine from "./src/core/DialogEngine/DialogEngine";
+import { bussinesLogicFile } from "./src/core/BussinesLogicParser/types";
 
 async function run() {
-	//const files = await readdir('./flows');
+	const files = await readdir('./flows');
 
-	//await Promise.all(files.map(async (file) => {
-	//let currentFileContent = await Bun.file(`./flows/${file}`).text();
-	//let fileName = file.split(".")[0];
-	//if (!fileName) {
-	//throw new AppError('some flow file has not the right format ')
-	//}
-	//BussinesLogicTransformer.loadYamlIntoMemory(fileName, currentFileContent);
-	//})).catch(e => {
-	//throw new AppError('error loading the flow files')
-	//})
+	await Promise.all(files.map(async (file) => {
+		let currentFileContent = await Bun.file(`./flows/${file}`).text();
+		let fileName = file.split(".")[0];
+		if (!fileName) {
+			throw new AppError('some flow file has not the right format ')
+		}
+		BussinesLogicTransformer.loadYamlIntoMemory(fileName, currentFileContent);
+	})).catch(e => {
+		throw new AppError('error loading the flow files')
+	})
 
-	//let list = BussinesLogicTransformer.getLogicStorate()
-	//let ref = BussinesLogicTransformer.getReferenceNodeInfo()
+	let list = BussinesLogicTransformer.getLogicStorate()
+
+	let work_workflow = list.get("flow");
+
+	let ref = BussinesLogicTransformer.getReferenceNodeInfo()
+	console.log(ref['flow']);
+
+	let machine = BussinesLogicTransformer.transformIntoStateMachine(work_workflow)
+	//console.log(machine);
+
+	let dialog = new DialogEngine(machine);
 
 	const CalendarEvent = z.object({
 		name: z.string(),
@@ -38,7 +49,7 @@ async function run() {
 		topic: 'programacion',
 		concept: 'lua'
 	})
-	console.log(p);
+	//console.log(p);
 
 	let inputs: ResponseInput[] = [
 		{
@@ -48,9 +59,11 @@ async function run() {
 	]
 
 
-	let x = await llmProviderManager.askLLm(inputs);
+
+
+	//let x = await llmProviderManager.askLLm(inputs);
 	//let x = await llmProviderManager.askLLm(inputs, CalendarEvent);
-	console.log(x.output_text);
+	//console.log(x.output_text);
 }
 
 run();

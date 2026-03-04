@@ -1,9 +1,10 @@
-// steps
-// - using that pass it into the state machiene class so it returns the thing i need 
-//   for the engine
-//
-
-// i need to initiace and return a working state machine for the engine
+// TODO
+// what i have to do now is to somehow provider information about each state, 
+// right now the state machino works so it know where is at but it does not know 
+// what that state meanst that is the StepRegistry responsability for that i have to 
+// make sure that the StepRegistry is using the proper name convetions for storing the steps infomatino 
+// so that just with the name of the step i ca access the detail of that step 
+// now im working on getting ready with that naming conventions
 
 import BussinesLogicParser from "../BussinesLogicParser/BussinesLogicParser";
 import type { Transition } from "../StateMachine/types";
@@ -11,7 +12,6 @@ import { type Workflow, type StepType, SlotTypes, type LinkStepType } from "../B
 import AppError from "../Errors/AppError";
 import StateMachine from "../StateMachine/StateMachine";
 import visualizeWorkflow from "../StateMachine/utils/visualizeWorkflow";
-import { which } from "bun";
 
 interface NodeStuctureForStateMachine {
 	conditional: {
@@ -35,7 +35,7 @@ function isThisAPointer(stateName: string) {
 
 	return false;
 }
-function isTheEnd(stepName: type) {
+function isTheEnd(stepName: string) {
 	if (stepName.includes("END")) {
 		return true;
 	}
@@ -207,6 +207,23 @@ interface CollectStepProperties extends BaseStepProperties {
 
 type StepPropertyTypes = LinkStepProperties | NextStepProperties | ActionStepProperties | CollectStepProperties;
 
+function generateStepName(
+	id: string,
+	step: StepType,
+	conditional?: "then" | "else") {
+
+	let condition_inter = conditional === "then" ?
+		'_if_then_' :
+		'_if_else_';
+
+	let inter = conditional ?
+		condition_inter :
+		"_";
+
+	return `${id}${inter}${formatStepName(step)}`
+}
+
+
 function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: string = ''): StepPropertyTypes {
 	let base = { nodeId, nodeDescription }
 	switch (step.type) {
@@ -224,7 +241,7 @@ function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: 
 }
 
 interface StepRegistryRecord {
-	nodes: Record<string, StepPropertyTypes[]>
+	steps: Record<string, StepPropertyTypes>
 }
 
 let l: LinkStepProperties = {
@@ -234,29 +251,19 @@ let l: LinkStepProperties = {
 	nodeDescription: ""
 }
 
-let t: Record<string, StepRegistryRecord> = {
-	"flow": {
-		nodes: {
-			"greet": [],
-			ask: [l, l, l, l],
-			out: []
-		}
-	}
-}
-
 // the data here has to be structured better
 class StepRegistry {
 	private static storage: Record<string, StepRegistryRecord> = {};
 
-	static save(fileName: string, nodeName: string, data: StepPropertyTypes) {
+	/// refactor here the way the steps are stored 
+	static save(fileName: string, stepName: string, data: StepPropertyTypes) {
 		if (!this.storage[fileName]) {
-			this.storage[fileName] = { nodes: {} };
+			this.storage[fileName] = { steps: {} };
 		}
-		if (!this.storage[fileName].nodes[nodeName]) {
-			this.storage[fileName].nodes[nodeName] = [];
-		}
-		this.storage[fileName].nodes[nodeName].push(data)
+
+		this.storage[fileName].steps[stepName] = data;
 	}
+	/// here is the problem
 
 	static getAllStepsFromDoc(fileName: string) {
 		return this.storage[fileName];
@@ -285,8 +292,8 @@ class BussinesLogicTransformer {
 		}
 		let workflowFile = new BussinesLogicParser().parserYamlIntoProcessFile(yamlFileContent);
 		this.bussinesLogicMemoryStorage.set(yamlFileName, workflowFile);
-		//this.transformIntoNodeInfoMap(workflowFile, yamlFileName);
-		this.transformIntoStateMachine(workflowFile, yamlFileName)
+		this.transformIntoNodeInfoMap(workflowFile, yamlFileName);
+		//this.transformIntoStateMachine(workflowFile)
 	}
 
 	static transformIntoNodeInfoMap(workflow: Workflow, fileName: string) {
@@ -297,7 +304,7 @@ class BussinesLogicTransformer {
 					//let stepName = `${node.id}_if_then_${formatStepName(step)}`
 					let value = getStepTypeProperties(step, node.id, node.description)
 					// the problem is here the way data is structured is bad so the problem is hard to solve
-					StepRegistry.save(fileName, node.id, value)
+					StepRegistry.save(fileName, 'dummy', value)
 				})
 
 				node.if.else.forEach(step => {
@@ -317,7 +324,7 @@ class BussinesLogicTransformer {
 
 	}
 
-	static transformIntoStateMachine(workflowFile: Workflow, yamlFileName: string) {
+	static transformIntoStateMachine(workflowFile: Workflow) {
 
 		/*
 		let slots = {
@@ -343,6 +350,7 @@ class BussinesLogicTransformer {
 
 			item.if?.then.forEach(step => {
 				let stepName = `${item.id}_if_then_${formatStepName(step)}`
+				//let stepName = generateStepName(item.id, step, 'then')
 				states.push(stepName);
 				buffer[item.id]?.conditional.then.push(stepName);
 
@@ -350,19 +358,20 @@ class BussinesLogicTransformer {
 
 			item.if?.else.forEach(step => {
 				let stepName = `${item.id}_if_else_${formatStepName(step)}`
+				//let stepName = generateStepName(item.id, step)
 				states.push(stepName);
-				buffer[item.id]?.conditional.else.push(stepName);
+				buffer[item.id]?.conditional.else.push(stepName, 'else');
 			})
 
 			item.steps.forEach(step => {
 				let stepName = `${item.id}_${formatStepName(step)}`
+				//let stepName = generateStepName(item.id, step)
 				states.push(stepName);
 				buffer[item.id]?.steps.push(stepName);
 			})
 
 		})
 
-		console.log('--------------------------');
 		// TODO re-think this section over here
 		try {
 			getFlowTransitions(buffer)
@@ -372,11 +381,15 @@ class BussinesLogicTransformer {
 		}
 
 		let transitions = getFlowTransitions(buffer)
+		console.log(states);
+		
 
 		// TODO change the first param in the future this is just for testing 
 		let machine = new StateMachine(states[0] || "", states, transitions)
 		let mapa = machine.getStatesGrahp();
+
 		visualizeWorkflow(mapa)
+		return machine;
 
 	}
 
