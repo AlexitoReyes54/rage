@@ -22,17 +22,18 @@ async function run() {
 		throw new AppError('error loading the flow files')
 	})
 
-	let list = BussinesLogicTransformer.getLogicStorate()
+	let workflows = BussinesLogicTransformer.getBussinesLogicMapStore()
+	let stepsInfo = BussinesLogicTransformer.getAllWorkflowsStepsInfo()
+	
+	// i need the state machine i have to work with 
 
-	let work_workflow = list.get("flow");
+	//console.log(stepsInfo['flow']);
+	//console.log(list);
 
-	let ref = BussinesLogicTransformer.getReferenceNodeInfo()
-	console.log(ref['flow']);
-
-	let machine = BussinesLogicTransformer.transformIntoStateMachine(work_workflow)
+	//let machine = BussinesLogicTransformer.transformIntoStateMachine(work_workflow)
 	//console.log(machine);
 
-	let dialog = new DialogEngine(machine);
+	//let dialog = new DialogEngine();
 
 	const CalendarEvent = z.object({
 		name: z.string(),

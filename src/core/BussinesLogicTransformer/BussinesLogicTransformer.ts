@@ -4,7 +4,7 @@
 // what that state meanst that is the StepRegistry responsability for that i have to 
 // make sure that the StepRegistry is using the proper name convetions for storing the steps infomatino 
 // so that just with the name of the step i ca access the detail of that step 
-// now im working on getting ready with that naming conventions
+//
 
 import BussinesLogicParser from "../BussinesLogicParser/BussinesLogicParser";
 import type { Transition } from "../StateMachine/types";
@@ -35,6 +35,7 @@ function isThisAPointer(stateName: string) {
 
 	return false;
 }
+
 function isTheEnd(stepName: string) {
 	if (stepName.includes("END")) {
 		return true;
@@ -60,6 +61,8 @@ function getAllLinkStepDestinations(nextNode: NodeStuctureForStateMachine): stri
 	if (commonSteps.length > 0 && commonSteps[0]) {
 		destinations.push(commonSteps[0])
 	}
+	console.log(destinations);
+	console.log('------------------------------------------------------');
 
 	return destinations;
 }
@@ -69,6 +72,8 @@ const getStepItLinks = (linkStep: string) => linkStep.split('_LINK_')[1];
 
 const generateTransitionName = (from: string, to: string) => `from_${from}_to_${to}`;
 
+// TODO the bug is here for some reasont the links are not working properly when creating the links 
+// references so we need to make sure this is happening as it should 
 function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 	const emptyEvent = () => null;
 	let transitions: Transition[] = [];
@@ -88,13 +93,16 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 				throw new AppError("error parsing links inside conditional while building state machie")
 			}
 
-			destinations.forEach(destination => transitions.push({
-				name: generateTransitionName(step, destination),
-				from: step,
-				to: destination,
-				event: emptyEvent
-			}));
+			destinations.forEach(destination => {
 
+				//console.log(`${step} => ${generateTransitionName(step, destination)} => ${destination}`);
+				transitions.push({
+					name: generateTransitionName(step, destination),
+					from: step,
+					to: destination,
+					event: emptyEvent
+				})
+			})
 		})
 	}
 
@@ -277,11 +285,12 @@ class StepRegistry {
 class BussinesLogicTransformer {
 	private static bussinesLogicMemoryStorage: Map<string, Workflow> = new Map();
 
-	static getLogicStorate() {
+
+	static getBussinesLogicMapStore() {
 		return this.bussinesLogicMemoryStorage;
 	}
 
-	static getReferenceNodeInfo() {
+	static getAllWorkflowsStepsInfo() {
 		return StepRegistry.getStorage();
 	}
 
@@ -293,7 +302,7 @@ class BussinesLogicTransformer {
 		let workflowFile = new BussinesLogicParser().parserYamlIntoProcessFile(yamlFileContent);
 		this.bussinesLogicMemoryStorage.set(yamlFileName, workflowFile);
 		this.transformIntoNodeInfoMap(workflowFile, yamlFileName);
-		//this.transformIntoStateMachine(workflowFile)
+		this.transformIntoStateMachine(workflowFile)
 	}
 
 	static transformIntoNodeInfoMap(workflow: Workflow, fileName: string) {
@@ -302,22 +311,25 @@ class BussinesLogicTransformer {
 			if (node.if) {
 				node.if.then.forEach(step => {
 					//let stepName = `${node.id}_if_then_${formatStepName(step)}`
+					let stepName = generateStepName(node.id, step, 'then')
 					let value = getStepTypeProperties(step, node.id, node.description)
 					// the problem is here the way data is structured is bad so the problem is hard to solve
-					StepRegistry.save(fileName, 'dummy', value)
+					StepRegistry.save(fileName, stepName, value)
 				})
 
 				node.if.else.forEach(step => {
 					//let stepName = `${node.id}_if_else_${formatStepName(step)}`
+					let stepName = generateStepName(node.id, step, 'else')
 					let value = getStepTypeProperties(step, node.id, node.description)
-					StepRegistry.save(fileName, node.id, value)
+					StepRegistry.save(fileName, stepName, value)
 				})
 			}
 
 			node.steps.forEach(step => {
 				//let stepName = `${node.id}_${formatStepName(step)}`
+				let stepName = generateStepName(node.id, step)
 				let value = getStepTypeProperties(step, node.id, node.description)
-				StepRegistry.save(fileName, node.id, value)
+				StepRegistry.save(fileName, stepName, value)
 			})
 
 		})
@@ -325,74 +337,55 @@ class BussinesLogicTransformer {
 	}
 
 	static transformIntoStateMachine(workflowFile: Workflow) {
-
-		/*
-		let slots = {
-			name: "Juan",
-			age: 19,
-			canDrink: true,
-		}
-		* */
-
-
-		// 3. get all the slots 
-		let buffer: StatesStructure = {};
-		let states: string[] = [];
-		workflowFile.process.forEach(item => {
-
-			buffer[item.id] = {
-				conditional: {
-					then: [],
-					else: []
-				},
-				steps: []
-			}
-
-			item.if?.then.forEach(step => {
-				let stepName = `${item.id}_if_then_${formatStepName(step)}`
-				//let stepName = generateStepName(item.id, step, 'then')
-				states.push(stepName);
-				buffer[item.id]?.conditional.then.push(stepName);
-
-			})
-
-			item.if?.else.forEach(step => {
-				let stepName = `${item.id}_if_else_${formatStepName(step)}`
-				//let stepName = generateStepName(item.id, step)
-				states.push(stepName);
-				buffer[item.id]?.conditional.else.push(stepName, 'else');
-			})
-
-			item.steps.forEach(step => {
-				let stepName = `${item.id}_${formatStepName(step)}`
-				//let stepName = generateStepName(item.id, step)
-				states.push(stepName);
-				buffer[item.id]?.steps.push(stepName);
-			})
-
-		})
-
-		// TODO re-think this section over here
 		try {
-			getFlowTransitions(buffer)
+			let workflowStepsRepresentation: StatesStructure = {};
+			let states: string[] = [];
+			workflowFile.process.forEach(item => {
+
+				workflowStepsRepresentation[item.id] = {
+					conditional: {
+						then: [],
+						else: []
+					},
+					steps: []
+				}
+
+				item.if?.then.forEach(step => {
+					let stepName = generateStepName(item.id, step, 'then')
+					states.push(stepName);
+					workflowStepsRepresentation[item.id]?.conditional.then.push(stepName);
+
+				})
+
+				item.if?.else.forEach(step => {
+					let stepName = generateStepName(item.id, step)
+					states.push(stepName);
+					workflowStepsRepresentation[item.id]?.conditional.else.push(stepName, 'else');
+				})
+
+				item.steps.forEach(step => {
+					let stepName = generateStepName(item.id, step)
+					states.push(stepName);
+					workflowStepsRepresentation[item.id]?.steps.push(stepName);
+				})
+
+			})
+
+			let transitions = getFlowTransitions(workflowStepsRepresentation)
+			let firstState = states[0];
+
+			//console.log(transitions);
+			//:wlet machine = new StateMachine(firstState, states, transitions)
+
+			// TODO change the first param in the future this is just for testing 
+			//let mapa = machine.getStatesGrahp();
+			//visualizeWorkflow(mapa)
+			//return machine;
+
 		} catch (error) {
-			console.log(error);
-			throw new AppError("error setting the transitions")
+			throw new AppError('error creating state machie for one of the workflows');
 		}
-
-		let transitions = getFlowTransitions(buffer)
-		console.log(states);
-		
-
-		// TODO change the first param in the future this is just for testing 
-		let machine = new StateMachine(states[0] || "", states, transitions)
-		let mapa = machine.getStatesGrahp();
-
-		visualizeWorkflow(mapa)
-		return machine;
-
 	}
-
 }
 
 export default BussinesLogicTransformer;
