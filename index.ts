@@ -24,20 +24,16 @@ async function run() {
 
 	let workflows = BussinesLogicTransformer.getWorkflowsMapStore()
 	let stepsInfo = BussinesLogicTransformer.getAllWorkflowsStepsInfo()
-
 	let machine = BussinesLogicTransformer.getStateMachinesMapStore()
+
 	let flowMachine = machine.get('flow');
 	let flowSTepsInfo = stepsInfo['flow'];
-	let s = flowMachine?.getCurrentState();
+	let s = flowMachine?.getCurrentState() as string;
 
-	console.log(flowSTepsInfo?.steps[s]);
-	console.log();
+	//console.log(flowSTepsInfo?.steps[s]);
+	//console.log(workflows.get('flow'));
 
-
-	//let machine = BussinesLogicTransformer.transformIntoStateMachine(work_workflow)
-	//console.log(machine);
-
-	//let dialog = new DialogEngine();
+	//	let dialog = new DialogEngine();
 
 	const CalendarEvent = z.object({
 		name: z.string(),
@@ -62,9 +58,6 @@ async function run() {
 			content: p
 		},
 	]
-
-
-
 
 	//let x = await llmProviderManager.askLLm(inputs);
 	//let x = await llmProviderManager.askLLm(inputs, CalendarEvent);

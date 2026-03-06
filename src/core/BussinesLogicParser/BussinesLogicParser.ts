@@ -7,6 +7,8 @@ import { validateOperator } from "./utils/validateOperator";
 import { hasDuplicates } from "./utils/hasDuplicates";
 import ActionsManager from "./../ActionsManager/ActionsManager"
 import AppError from "../Errors/AppError";
+import type { SlotsObject, AllowedSlotValues } from "../StateMachine/types";
+import type { SlotTypes } from "./types";
 
 function extractValidLinks(
 	steps: StepType[],
@@ -18,6 +20,17 @@ function extractValidLinks(
 		.filter(nodeLink => nodeIDs.has(nodeLink) || nodeLink === END)
 }
 
+function getEmptyValue(dataType: SlotTypes): AllowedSlotValues {
+	switch (dataType) {
+		case 'string':
+			return '';
+		case 'boolean':
+			return false;
+			break;
+		case 'number':
+			return 0
+	}
+}
 
 class BussinesLogicParser {
 	slotsStorage: Map<string, Slot[]> = new Map();
@@ -178,10 +191,22 @@ class BussinesLogicParser {
 		})
 	}
 
+
+
+	getSlotsObject() {
+		let slotObj: SlotsObject = {};
+		for (const [key, value] of this.slotsObjStore) {
+			slotObj[value.name] = getEmptyValue(value.type)
+		}
+		console.log(slotObj);
+		return slotObj;
+	}
+
 	parserYamlIntoProcessFile(yamlFile: string) {
 		const result = ProcessFile.safeParse(YAML.parse(yamlFile))
 		if (result.success) {
 			this.validateSlots(result.data);
+
 			this.validateContidiontal(result.data);
 
 			// actions are not valid insithe the conditional is has to happend in the steps

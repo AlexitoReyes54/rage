@@ -12,6 +12,7 @@ import { type Workflow, type StepType, SlotTypes, type LinkStepType } from "../B
 import AppError from "../Errors/AppError";
 import StateMachine from "../StateMachine/StateMachine";
 import visualizeWorkflow from "../StateMachine/utils/visualizeWorkflow";
+import type { SlotsObject } from "../StateMachine/types";
 
 interface NodeStuctureForStateMachine {
 	conditional: {
@@ -297,10 +298,12 @@ class BussinesLogicTransformer {
 		if (this.workflowMemoryStorage.has(yamlFileName)) {
 			throw new AppError('there are 2 files with the same file name');
 		}
-		let workflowFile = new BussinesLogicParser().parserYamlIntoProcessFile(yamlFileContent);
+		const bussinesLogicParser = new BussinesLogicParser();
+		const workflowFile = bussinesLogicParser.parserYamlIntoProcessFile(yamlFileContent);
+		const workflowSlots = bussinesLogicParser.getSlotsObject();
 		this.workflowMemoryStorage.set(yamlFileName, workflowFile);
 		this.transformIntoNodeInfoMap(workflowFile, yamlFileName);
-		this.transformIntoStateMachine(workflowFile, yamlFileName)
+		this.transformIntoStateMachine(workflowFile, yamlFileName, workflowSlots)
 	}
 
 	static transformIntoNodeInfoMap(workflow: Workflow, fileName: string) {
@@ -330,7 +333,7 @@ class BussinesLogicTransformer {
 
 	}
 
-	static transformIntoStateMachine(workflowFile: Workflow, fileName: string) {
+	static transformIntoStateMachine(workflowFile: Workflow, fileName: string, workflowSlots: SlotsObject) {
 		try {
 			let workflowStepsRepresentation: StatesStructure = {};
 			let states: string[] = [];
@@ -368,7 +371,10 @@ class BussinesLogicTransformer {
 			let transitions = getFlowTransitions(workflowStepsRepresentation)
 			let firstState = states[0];
 
-			let machine = new StateMachine(firstState, states, transitions)
+			let machine = new StateMachine(firstState, states, transitions, workflowSlots)
+			
+			console.log(machine);
+
 			this.stateMachineMemoryStorage.set(fileName, machine)
 		} catch (error) {
 			throw new AppError('error creating state machie for one of the workflows');
