@@ -61,8 +61,6 @@ function getAllLinkStepDestinations(nextNode: NodeStuctureForStateMachine): stri
 	if (commonSteps.length > 0 && commonSteps[0]) {
 		destinations.push(commonSteps[0])
 	}
-	console.log(destinations);
-	console.log('------------------------------------------------------');
 
 	return destinations;
 }
@@ -72,8 +70,6 @@ const getStepItLinks = (linkStep: string) => linkStep.split('_LINK_')[1];
 
 const generateTransitionName = (from: string, to: string) => `from_${from}_to_${to}`;
 
-// TODO the bug is here for some reasont the links are not working properly when creating the links 
-// references so we need to make sure this is happening as it should 
 function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 	const emptyEvent = () => null;
 	let transitions: Transition[] = [];
@@ -94,8 +90,6 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 			}
 
 			destinations.forEach(destination => {
-
-				//console.log(`${step} => ${generateTransitionName(step, destination)} => ${destination}`);
 				transitions.push({
 					name: generateTransitionName(step, destination),
 					from: step,
@@ -127,6 +121,8 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 		}
 
 		if (conditional.then && nextNode) {
+
+
 			linkStep(conditional.then, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
 		}
 
@@ -141,7 +137,6 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 			if (!currentStep || (!nextStep && steps.length - 1 !== i)) {
 				throw new AppError('error happended while reading steps and turning them into state machine transitions')
 			}
-
 			if (isThisAPointer(currentStep) && nextNode) {
 				const destinations = getAllLinkStepDestinations(flowStructure[nextNode] as NodeStuctureForStateMachine);
 				destinations.forEach(destination => transitions.push({
@@ -167,7 +162,6 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 
 	})
 
-	//console.log("transitions", transitions);
 	return transitions;
 }
 function formatStepName(step: StepType) {
@@ -283,11 +277,15 @@ class StepRegistry {
 }
 
 class BussinesLogicTransformer {
-	private static bussinesLogicMemoryStorage: Map<string, Workflow> = new Map();
+	private static workflowMemoryStorage: Map<string, Workflow> = new Map();
+	private static stateMachineMemoryStorage: Map<string, StateMachine> = new Map();
 
+	static getWorkflowsMapStore() {
+		return this.workflowMemoryStorage;
+	}
 
-	static getBussinesLogicMapStore() {
-		return this.bussinesLogicMemoryStorage;
+	static getStateMachinesMapStore() {
+		return this.stateMachineMemoryStorage;
 	}
 
 	static getAllWorkflowsStepsInfo() {
@@ -296,13 +294,13 @@ class BussinesLogicTransformer {
 
 
 	static loadYamlIntoMemory(yamlFileName: string, yamlFileContent: string) {
-		if (this.bussinesLogicMemoryStorage.has(yamlFileName)) {
+		if (this.workflowMemoryStorage.has(yamlFileName)) {
 			throw new AppError('there are 2 files with the same file name');
 		}
 		let workflowFile = new BussinesLogicParser().parserYamlIntoProcessFile(yamlFileContent);
-		this.bussinesLogicMemoryStorage.set(yamlFileName, workflowFile);
+		this.workflowMemoryStorage.set(yamlFileName, workflowFile);
 		this.transformIntoNodeInfoMap(workflowFile, yamlFileName);
-		this.transformIntoStateMachine(workflowFile)
+		this.transformIntoStateMachine(workflowFile, yamlFileName)
 	}
 
 	static transformIntoNodeInfoMap(workflow: Workflow, fileName: string) {
@@ -310,15 +308,12 @@ class BussinesLogicTransformer {
 		workflow.process.forEach(node => {
 			if (node.if) {
 				node.if.then.forEach(step => {
-					//let stepName = `${node.id}_if_then_${formatStepName(step)}`
 					let stepName = generateStepName(node.id, step, 'then')
 					let value = getStepTypeProperties(step, node.id, node.description)
-					// the problem is here the way data is structured is bad so the problem is hard to solve
 					StepRegistry.save(fileName, stepName, value)
 				})
 
 				node.if.else.forEach(step => {
-					//let stepName = `${node.id}_if_else_${formatStepName(step)}`
 					let stepName = generateStepName(node.id, step, 'else')
 					let value = getStepTypeProperties(step, node.id, node.description)
 					StepRegistry.save(fileName, stepName, value)
@@ -326,7 +321,6 @@ class BussinesLogicTransformer {
 			}
 
 			node.steps.forEach(step => {
-				//let stepName = `${node.id}_${formatStepName(step)}`
 				let stepName = generateStepName(node.id, step)
 				let value = getStepTypeProperties(step, node.id, node.description)
 				StepRegistry.save(fileName, stepName, value)
@@ -336,7 +330,7 @@ class BussinesLogicTransformer {
 
 	}
 
-	static transformIntoStateMachine(workflowFile: Workflow) {
+	static transformIntoStateMachine(workflowFile: Workflow, fileName: string) {
 		try {
 			let workflowStepsRepresentation: StatesStructure = {};
 			let states: string[] = [];
@@ -360,7 +354,7 @@ class BussinesLogicTransformer {
 				item.if?.else.forEach(step => {
 					let stepName = generateStepName(item.id, step)
 					states.push(stepName);
-					workflowStepsRepresentation[item.id]?.conditional.else.push(stepName, 'else');
+					workflowStepsRepresentation[item.id]?.conditional.else.push(stepName);
 				})
 
 				item.steps.forEach(step => {
@@ -374,14 +368,8 @@ class BussinesLogicTransformer {
 			let transitions = getFlowTransitions(workflowStepsRepresentation)
 			let firstState = states[0];
 
-			//console.log(transitions);
-			//:wlet machine = new StateMachine(firstState, states, transitions)
-
-			// TODO change the first param in the future this is just for testing 
-			//let mapa = machine.getStatesGrahp();
-			//visualizeWorkflow(mapa)
-			//return machine;
-
+			let machine = new StateMachine(firstState, states, transitions)
+			this.stateMachineMemoryStorage.set(fileName, machine)
 		} catch (error) {
 			throw new AppError('error creating state machie for one of the workflows');
 		}

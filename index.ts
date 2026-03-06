@@ -22,13 +22,17 @@ async function run() {
 		throw new AppError('error loading the flow files')
 	})
 
-	let workflows = BussinesLogicTransformer.getBussinesLogicMapStore()
+	let workflows = BussinesLogicTransformer.getWorkflowsMapStore()
 	let stepsInfo = BussinesLogicTransformer.getAllWorkflowsStepsInfo()
-	
-	// i need the state machine i have to work with 
 
-	//console.log(stepsInfo['flow']);
-	//console.log(list);
+	let machine = BussinesLogicTransformer.getStateMachinesMapStore()
+	let flowMachine = machine.get('flow');
+	let flowSTepsInfo = stepsInfo['flow'];
+	let s = flowMachine?.getCurrentState();
+
+	console.log(flowSTepsInfo?.steps[s]);
+	console.log();
+
 
 	//let machine = BussinesLogicTransformer.transformIntoStateMachine(work_workflow)
 	//console.log(machine);
