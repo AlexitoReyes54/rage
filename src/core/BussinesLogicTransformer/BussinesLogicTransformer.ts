@@ -372,8 +372,6 @@ class BussinesLogicTransformer {
 			let firstState = states[0];
 
 			let machine = new StateMachine(firstState, states, transitions, workflowSlots)
-			
-			console.log(machine);
 
 			this.stateMachineMemoryStorage.set(fileName, machine)
 		} catch (error) {
