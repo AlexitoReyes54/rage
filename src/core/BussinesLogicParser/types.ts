@@ -75,3 +75,9 @@ export interface Slot {
 	type: SlotTypes,
 	name: string,
 }
+
+export type Condition = {
+	left: string | undefined;
+	operator: ">" | ">=" | "<" | "<=" | "==" | "!=";
+	right: string | number | boolean | undefined;
+};

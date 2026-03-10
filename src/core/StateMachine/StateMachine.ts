@@ -96,7 +96,7 @@ class StateMachine implements Observer {
 		})
 	}
 
-	getPossibleTransitions() {
+	getPossibleTransitions(): Transition[] {
 		let currentStateNode = this.statesGrahp.get(this.currentState) || [];
 		return currentStateNode;
 	}

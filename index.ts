@@ -5,8 +5,12 @@ import AppError from "./src/core/Errors/AppError";
 import LLmProviderManager, { type ResponseInput } from "./src/core/LlmProviderManager/LlmProviderManager";
 import z from "zod";
 import createResponseRephraserPrompt from "./src/core/LlmProviderManager/promts/responseRephraser";
-import DialogEngine from "./src/core/DialogEngine/DialogEngine";
+import DialogEngine, { type CollectParam } from "./src/core/DialogEngine/DialogEngine";
 import { bussinesLogicFile } from "./src/core/BussinesLogicParser/types";
+import visualizeWorkflow from "./src/core/StateMachine/utils/visualizeWorkflow";
+
+import { COLLECT } from "./src/core/BussinesLogicParser/types";
+
 
 async function run() {
 	const files = await readdir('./flows');
@@ -19,6 +23,7 @@ async function run() {
 		}
 		BussinesLogicTransformer.loadYamlIntoMemory(fileName, currentFileContent);
 	})).catch(e => {
+		console.log(e);
 		throw new AppError('error loading the flow files')
 	})
 
@@ -26,14 +31,46 @@ async function run() {
 	let stepsInfo = BussinesLogicTransformer.getAllWorkflowsStepsInfo()
 	let machine = BussinesLogicTransformer.getStateMachinesMapStore()
 
-	let flowMachine = machine.get('flow');
-	let flowSTepsInfo = stepsInfo['flow'];
-	let s = flowMachine?.getCurrentState() as string;
+	let medicalMachine = machine.get('medical');
+	let medicalSTepsInfo = stepsInfo['medical'];
+	let s = medicalMachine?.getCurrentState() as string;
 
 	//console.log(flowSTepsInfo?.steps[s]);
 	//console.log(workflows.get('flow'));
 
-	//	let dialog = new DialogEngine();
+	// the dialog engine has to have a a spesific state flow 
+	// what flos is going to use
+	// flow state machine if there is any 
+	// understandinf params if any 
+	let flowToUse = 'medical';
+	let dialog = new DialogEngine(flowToUse);
+	let props: CollectParam = {
+		collectedData: 'sample',
+		type: 'COLLECT'
+	}
+	dialog.excuteCurrentStep(props);
+
+	// this is a controller
+
+	// get data logic
+	// parse somtheing 
+	// use undertanding...
+	// use dialog 
+	// generate response 
+	// send response to client (whatsapp)
+	// i need a database for the state of the information
+	// the code just executes 
+	// how i can keep track of the dialog state and state machine status
+
+	// what this needs as input???
+	// state machine to know what to track 
+	// detail to know what each state means 
+
+	// what is the output ? 
+	// instruction for the parser 
+	// current snapshot of the sate machine 
+	// if needed responde of executed actions
+	// what should be it for now
 
 	const CalendarEvent = z.object({
 		name: z.string(),

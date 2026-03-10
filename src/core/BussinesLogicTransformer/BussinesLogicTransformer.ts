@@ -1,29 +1,14 @@
-// TODO
-// what i have to do now is to somehow provider information about each state, 
-// right now the state machino works so it know where is at but it does not know 
-// what that state meanst that is the StepRegistry responsability for that i have to 
-// make sure that the StepRegistry is using the proper name convetions for storing the steps infomatino 
-// so that just with the name of the step i ca access the detail of that step 
-//
-
 import BussinesLogicParser from "../BussinesLogicParser/BussinesLogicParser";
 import type { Transition } from "../StateMachine/types";
-import { type Workflow, type StepType, SlotTypes, type LinkStepType } from "../BussinesLogicParser/types";
+import { type Workflow, type StepType } from "../BussinesLogicParser/types";
+import type { StepRegistryRecord, StatesStructure, NodeStuctureForStateMachine, StepPropertyTypes } from "./types";
 import AppError from "../Errors/AppError";
 import StateMachine from "../StateMachine/StateMachine";
-import visualizeWorkflow from "../StateMachine/utils/visualizeWorkflow";
 import type { SlotsObject } from "../StateMachine/types";
 
-interface NodeStuctureForStateMachine {
-	conditional: {
-		then: string[];
-		else: string[];
-	};
-	steps: string[];
-}
+import visualizeWorkflow from "../StateMachine/utils/visualizeWorkflow";
 
-type StatesStructure = Record<string, NodeStuctureForStateMachine>
-
+type conditionalSections = "then" | "else";
 
 function isThisAPointer(stateName: string) {
 	if (stateName.includes("END")) {
@@ -72,98 +57,107 @@ const getStepItLinks = (linkStep: string) => linkStep.split('_LINK_')[1];
 const generateTransitionName = (from: string, to: string) => `from_${from}_to_${to}`;
 
 function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
-	const emptyEvent = () => null;
-	let transitions: Transition[] = [];
-	const nodes = Object.keys(flowStructure);
-	const linkStep = (currentStepsSet: string[], firstStepFromNextSet: string, nextNode: NodeStuctureForStateMachine) => {
-		currentStepsSet.forEach((step, i) => {
-			const nextStep = currentStepsSet[i + 1] || firstStepFromNextSet;
-			const destinations: string[] | undefined = [];
+	try {
+		const emptyEvent = () => null;
+		let transitions: Transition[] = [];
+		const nodes = Object.keys(flowStructure);
+		const linkStep = (currentStepsSet: string[], firstStepFromNextSet: string, nextNode: NodeStuctureForStateMachine) => {
+			currentStepsSet.forEach((step, i) => {
+				const nextStep = currentStepsSet[i + 1] || firstStepFromNextSet;
+				const destinations: string[] | undefined = [];
 
-			if (isThisAPointer(step)) {
-				getAllLinkStepDestinations(nextNode)
-			} else {
-				destinations.push(nextStep);
-			}
-
-			if (!destinations) {
-				throw new AppError("error parsing links inside conditional while building state machie")
-			}
-
-			destinations.forEach(destination => {
-				transitions.push({
-					name: generateTransitionName(step, destination),
-					from: step,
-					to: destination,
-					event: emptyEvent
-				})
-			})
-		})
-	}
-
-
-	nodes.forEach((node, nodeIndex) => {
-		let nodeInfo = flowStructure[node];
-
-		if (!nodeInfo) {
-			throw new AppError("error happend while trying to build state machine from bussine logic file");
-		}
-
-		let nextNode = nodes[nodeIndex + 1];
-
-		if (!nextNode && nodes.length - 1 !== nodeIndex) {
-			throw new AppError("there is an error pointing to the next node and state machine building");
-		}
-
-		let { conditional, steps } = nodeInfo;
-
-		if (!steps[0]) {
-			throw new AppError("something went wrong with the steps parsing from the bussines logic file steps");
-		}
-
-		if (conditional.then && nextNode) {
-
-
-			linkStep(conditional.then, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
-		}
-
-		if (conditional.else && nextNode) {
-			linkStep(conditional.else, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
-		}
-
-		for (let i = 0; i < steps.length; i++) {
-			const currentStep = steps[i];
-			const nextStep = steps[i + 1];
-
-			if (!currentStep || (!nextStep && steps.length - 1 !== i)) {
-				throw new AppError('error happended while reading steps and turning them into state machine transitions')
-			}
-			if (isThisAPointer(currentStep) && nextNode) {
-				const destinations = getAllLinkStepDestinations(flowStructure[nextNode] as NodeStuctureForStateMachine);
-				destinations.forEach(destination => transitions.push({
-					from: currentStep,
-					to: destination,
-					name: generateTransitionName(currentStep, destination),
-					event: emptyEvent
-				}));
-			} else {
-
-				if (isTheEnd(currentStep)) {
-					return;
+				if (isThisAPointer(step)) {
+					// if there is an error with the links pointers 
+					// take a look here
+					getAllLinkStepDestinations(nextNode)
+						.forEach(item => destinations.push(item))
+				} else {
+					destinations.push(nextStep);
 				}
 
-				transitions.push({
-					from: currentStep,
-					to: nextStep,
-					name: generateTransitionName(currentStep, nextStep),
-					event: emptyEvent
+				if (!destinations) {
+					throw new AppError("error parsing links inside conditional while building state machie")
+				}
+
+				destinations.forEach(destination => {
+					transitions.push({
+						name: generateTransitionName(step, destination),
+						from: step,
+						to: destination,
+						event: emptyEvent
+					})
 				})
-			}
+			})
+
 		}
 
-	})
 
-	return transitions;
+		nodes.forEach((node, nodeIndex) => {
+			let nodeInfo = flowStructure[node];
+
+			if (!nodeInfo) {
+				throw new AppError("error happend while trying to build state machine from bussine logic file");
+			}
+
+			let nextNode = nodes[nodeIndex + 1];
+
+			if (!nextNode && nodes.length - 1 !== nodeIndex) {
+				throw new AppError("there is an error pointing to the next node and state machine building");
+			}
+
+			let { conditional, steps } = nodeInfo;
+
+			if (!steps[0]) {
+				throw new AppError("something went wrong with the steps parsing from the bussines logic file steps");
+			}
+
+			if (conditional.then && nextNode) {
+
+				linkStep(conditional.then, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
+			}
+
+			if (conditional.else && nextNode) {
+				linkStep(conditional.else, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
+			}
+
+			for (let i = 0; i < steps.length; i++) {
+				const currentStep = steps[i];
+				const nextStep = steps[i + 1];
+
+				if (!currentStep || (!nextStep && steps.length - 1 !== i)) {
+					throw new AppError('error happended while reading steps and turning them into state machine transitions')
+				}
+				if (isThisAPointer(currentStep) && nextNode) {
+					const destinations = getAllLinkStepDestinations(flowStructure[nextNode] as NodeStuctureForStateMachine);
+					destinations.forEach(destination => transitions.push({
+						from: currentStep,
+						to: destination,
+						name: generateTransitionName(currentStep, destination),
+						event: emptyEvent
+					}));
+				} else {
+
+					if (isTheEnd(currentStep)) {
+						return;
+					}
+
+					transitions.push({
+						from: currentStep,
+						to: nextStep,
+						name: generateTransitionName(currentStep, nextStep),
+						event: emptyEvent
+					})
+				}
+			}
+
+		})
+
+		return transitions;
+
+	} catch (error) {
+		console.log(error);
+		throw new AppError('error creating transitions for file ')
+	}
 }
 function formatStepName(step: StepType) {
 	switch (step.type) {
@@ -180,40 +174,10 @@ function formatStepName(step: StepType) {
 	}
 }
 
-interface BaseStepProperties {
-	nodeId: string;
-	nodeDescription: string | undefined;
-}
-
-interface LinkStepProperties extends BaseStepProperties {
-	type: "LINK";
-	link: string;
-}
-
-interface NextStepProperties extends BaseStepProperties {
-	type: "NEXT";
-	next: string;
-}
-
-interface ActionStepProperties extends BaseStepProperties {
-	type: "ACTION";
-	actionName: string;
-	actionParams: string[] | undefined;
-}
-
-interface CollectStepProperties extends BaseStepProperties {
-	type: "COLLECT";
-	slotName: string;
-	slotType: string;
-	note: string | undefined;
-}
-
-type StepPropertyTypes = LinkStepProperties | NextStepProperties | ActionStepProperties | CollectStepProperties;
-
 function generateStepName(
 	id: string,
 	step: StepType,
-	conditional?: "then" | "else") {
+	conditional?: conditionalSections) {
 
 	let condition_inter = conditional === "then" ?
 		'_if_then_' :
@@ -243,30 +207,49 @@ function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: 
 	}
 }
 
-interface StepRegistryRecord {
-	steps: Record<string, StepPropertyTypes>
-}
 
-let l: LinkStepProperties = {
-	link: 'some',
-	type: "LINK",
-	nodeId: "",
-	nodeDescription: ""
-}
-
-// the data here has to be structured better
 class StepRegistry {
 	private static storage: Record<string, StepRegistryRecord> = {};
 
 	/// refactor here the way the steps are stored 
-	static save(fileName: string, stepName: string, data: StepPropertyTypes) {
+	static saveSingleStep(fileName: string, stepName: string, data: StepPropertyTypes) {
 		if (!this.storage[fileName]) {
-			this.storage[fileName] = { steps: {} };
+			this.storage[fileName] = {
+				nodes: {},
+				steps: {}
+			};
 		}
 
 		this.storage[fileName].steps[stepName] = data;
 	}
-	/// here is the problem
+
+	// TODO implement this to add the information in the node structure 
+	// and remmnber to add the condition to the node 
+	static saveStepToNode(fileName: string,
+		nodeName: string,
+		stepName: string,
+		conditionalBlock?: conditionalSections) {
+
+		if (!this.storage[fileName]) {
+			this.storage[fileName] = {
+				nodes: {},
+				steps: {}
+			};
+		}
+
+		if (!conditionalBlock) {
+			this.storage[fileName]?.nodes[nodeName]?.steps.push(stepName)
+			return;
+		}
+
+		const keyMap = {
+			then: 'ifTrue',
+			else: 'ifFalse'
+		} as const;
+		const block: 'ifTrue' | 'ifFalse' = keyMap[conditionalBlock];
+
+		this.storage[fileName]?.nodes[nodeName]?.evaluation[block].push(stepName)
+	}
 
 	static getAllStepsFromDoc(fileName: string) {
 		return this.storage[fileName];
@@ -313,20 +296,23 @@ class BussinesLogicTransformer {
 				node.if.then.forEach(step => {
 					let stepName = generateStepName(node.id, step, 'then')
 					let value = getStepTypeProperties(step, node.id, node.description)
-					StepRegistry.save(fileName, stepName, value)
+					StepRegistry.saveSingleStep(fileName, stepName, value)
+					StepRegistry.saveStepToNode(fileName, node.id, stepName, 'then')
 				})
 
 				node.if.else.forEach(step => {
 					let stepName = generateStepName(node.id, step, 'else')
 					let value = getStepTypeProperties(step, node.id, node.description)
-					StepRegistry.save(fileName, stepName, value)
+					StepRegistry.saveSingleStep(fileName, stepName, value)
+					StepRegistry.saveStepToNode(fileName, node.id, stepName, 'else')
 				})
 			}
 
 			node.steps.forEach(step => {
 				let stepName = generateStepName(node.id, step)
 				let value = getStepTypeProperties(step, node.id, node.description)
-				StepRegistry.save(fileName, stepName, value)
+				StepRegistry.saveSingleStep(fileName, stepName, value)
+				StepRegistry.saveStepToNode(fileName, node.id, stepName)
 			})
 
 		})
@@ -375,7 +361,9 @@ class BussinesLogicTransformer {
 
 			this.stateMachineMemoryStorage.set(fileName, machine)
 		} catch (error) {
-			throw new AppError('error creating state machie for one of the workflows');
+			console.log(error);
+
+			throw new AppError('error creating state machie for one of the workflows ' + fileName);
 		}
 	}
 }

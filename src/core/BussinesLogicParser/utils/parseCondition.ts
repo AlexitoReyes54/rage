@@ -1,8 +1,4 @@
-type Condition = {
-	left: string | undefined;
-	operator: ">" | ">=" | "<" | "<=" | "==" | "!=";
-	right: string | number | boolean | undefined;
-};
+import type { Condition } from "../types";
 
 const CONDITION_REGEX =
 	/^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(>=|<=|==|!=|>|<)\s*(?:(\d+(?:\.\d+)?)|(true|false)|(["'])(.*?)\5|([a-zA-Z_][a-zA-Z0-9_]*))\s*$/;

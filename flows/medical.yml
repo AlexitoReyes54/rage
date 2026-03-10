@@ -1,0 +1,82 @@
+process:
+  - id: greet
+    name: "Initial Greeting"
+    description: "Start the interaction and collect patient identity."
+    steps:
+      - type: COLLECT
+        collect:
+          name: "patient_name"
+          type: "string"
+          note: "The full name of the patient."
+          validation: "len(value) > 0"
+      - type: COLLECT
+        collect:
+          name: "is_emergency"
+          type: "boolean"
+          note: "Is the patient in immediate pain?"
+          validation: ""
+      - type: LINK
+        link: "triage_logic"
+
+  - id: triage_logic
+    name: "Triage Routing"
+    description: "Branching logic to handle emergency vs standard booking."
+    if:
+      condition: "is_emergency == true"
+      then:
+        - type: LINK
+          link: "emergency_details"
+      else:
+        - type: LINK
+          link: "standard_details"
+    steps:
+      - type: COLLECT
+        collect:
+          name: "routing_checkpoint"
+          type: "string"
+          note: "Mock step to satisfy parser requirement for non-empty steps."
+          validation: ""
+      - type: LINK
+        link: "END" # Fallback link if 'if' logic fails to trigger
+
+  - id: emergency_details
+    name: "Emergency Collection"
+    description: "Gather specific pain details for urgent cases."
+    steps:
+      - type: COLLECT
+        collect:
+          name: "pain_level"
+          type: "number"
+          note: "Scale of 1-10"
+          validation: ">= 1"
+      - type: LINK
+        link: "finalize_booking"
+
+  - id: standard_details
+    name: "Standard Collection"
+    description: "Gather date for routine visits."
+    steps:
+      - type: COLLECT
+        collect:
+          name: "preferred_date"
+          type: "string"
+          note: "Desired date (YYYY-MM-DD)."
+          validation: "len(value) == 10"
+      - type: LINK
+        link: "finalize_booking"
+
+  - id: finalize_booking
+    name: "Calendar Integration"
+    description: "Single point of connection for the 3rd party booking app."
+    steps:
+      - type: ACTION
+        params: 
+          - patient_name
+          - is_emergency
+          - pain_level
+          - preferred_date
+        action: "mockCalendarBooking"
+      - type: LINK
+        link: "END"
+
+ask_before_filling: true

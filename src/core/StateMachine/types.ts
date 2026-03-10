@@ -11,10 +11,10 @@ export interface Observer {
 }
 
 export interface Transition {
-	readonly name: string;
-	readonly from: string;
-	readonly to: string;
-	readonly event: () => void;
+	name: string;
+	from: string;
+	to: string;
+	event: () => void;
 }
 
 export interface EventManager {
