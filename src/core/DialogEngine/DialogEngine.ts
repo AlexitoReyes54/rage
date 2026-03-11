@@ -1,7 +1,7 @@
 import StateMachine from "../StateMachine/StateMachine";
 import BussinesLogicTransformer from "../BussinesLogicTransformer/BussinesLogicTransformer";
 import AppError from "../Errors/AppError";
-import type { StepRegistryRecord } from "../BussinesLogicTransformer/types";
+import type { StepPropertyTypes, StepRegistryRecord } from "../BussinesLogicTransformer/types";
 import type { StepTypeNames } from "../BussinesLogicParser/types";
 
 interface CollectedDataBase {
@@ -21,6 +21,11 @@ interface DialogEngineState {
 }
 
 
+
+// TODO implement this fn this should be a util pritity +1 
+const nodeConditionIsTrue = (): boolean => true;
+
+
 /*
  * consider inplmenting a validation like this on for the booleans
 *
@@ -31,6 +36,7 @@ interface DialogEngineState {
 }
 *
 * for the next function
+
 * */
 
 function validateDataType(collectedData: any, expectedDataType: 'number' | 'string' | 'boolean') {
@@ -38,11 +44,10 @@ function validateDataType(collectedData: any, expectedDataType: 'number' | 'stri
 	return typeOfCollectedData === expectedDataType ? true : false;
 }
 
-
-
 class DialogEngine {
 	private stateMachine: StateMachine;
 	private stepsDetailedInfo: StepRegistryRecord;
+	private workflowName: string;
 
 	constructor(workflowName: string, stateMachine?: StateMachine) {
 		const workflowStateMachine = stateMachine ?? BussinesLogicTransformer
@@ -54,12 +59,42 @@ class DialogEngine {
 			throw new AppError('error the state machine your are looking for does not exist while using dialog engine for ' + workflowName);
 		}
 
+		this.workflowName = workflowName;
 		this.stepsDetailedInfo = stepsDetailedInfo;
 		this.stateMachine = workflowStateMachine;
 	}
 
 	intialize() {
 
+	}
+
+	makeTransition(currentStepDetails: StepPropertyTypes) {
+		let possibleTransitionList = this.stateMachine.getPossibleTransitions();
+
+		if (possibleTransitionList.length === 1 && possibleTransitionList[0]) {
+
+			const transitionName = possibleTransitionList[0]?.name;
+
+			this.stateMachine.transition(transitionName);
+		} else if (possibleTransitionList.length === 3) {
+			const branch = nodeConditionIsTrue() ? 'ifTrue' : 'ifFalse';
+			const currStepName = possibleTransitionList[0]?.from;
+
+			if (!currentStepDetails.nodeConditional) {
+				throw new AppError('there is a link that points to 3 steps but the node it points to has no conditional for file' + this.workflowName)
+			}
+
+			const targetStepName = this.stepsDetailedInfo.nodes[currentStepDetails.nodeId]?.evaluation[branch][0];
+			const transition = possibleTransitionList.find(t => t.to === targetStepName);
+
+			if (!transition) {
+				throw new AppError('there is nos transiton in the step ' + currStepName + 'to ' + targetStepName)
+			}
+
+			this.stateMachine.transition(transition.name)
+		} else {
+			throw new AppError('error in the DialogEngine, unknow scenaro where link has not 1 or 3 refeences, see the doc information this was not considering while coding this feature for file' + this.workflowName)
+		}
 	}
 
 	// error that happends inside this functino has to be habdled with grace 
@@ -80,84 +115,34 @@ class DialogEngine {
 		// how to execute steps:
 		// - see the step requirements 
 		// - the details are just for the llm not the engine logic 
-		// - it has to tell what to send to the user
+		// - it has to tell what to send to the llm
 
 		let curr = this.stateMachine.getCurrentState();
-		let info = this.stepsDetailedInfo.steps[curr];
+		let currentStepDetails = this.stepsDetailedInfo.steps[curr];
 
-		//console.log(this.stepsDetailedInfo.nodes);
 		console.log('---------------------');
-		console.log(this.stepsDetailedInfo.steps);
-		console.log('---------------------');
-		
+		console.log(currentStepDetails);
 		console.log('---------------------');
 
-		// console.log(curr);
-		// console.log(info);
-
-		switch (info?.type) {
+		switch (currentStepDetails?.type) {
 			case 'COLLECT':
-				dialogEngineState.currentStepType = info.type;
+				dialogEngineState.currentStepType = currentStepDetails.type;
 				const userInput = collectedData.collectedData;
 
-				// see if the condition are meet if not then tell them to work 
-				//
-				// 1. are the condition meets ?
-				// 	yes => move to the next step
-				// 	not => tell the rephraser to do the current step again
-				//
-				// 2. where are the props ? 
-				// 	- i need the props from the understanding 
-
 				if (!userInput) {
-					// there is no data in there
-					// tell the llm to ask for that information
-
-					// do the same step again
+					// do the same step again - collect the slot
 				}
 
-
-				if (!validateDataType(userInput, info.slotType)) {
+				if (!validateDataType(userInput, currentStepDetails.slotType)) {
 					throw new AppError('error collecting user inputs it seems like the llm is not returning the same type as the one defined in the bussine logic file ')
 				}
 
-
 				// here its a yes in principle 
-				this.stateMachine.updateSingleSlot(info.slotName, userInput)
+				this.stateMachine.updateSingleSlot(currentStepDetails.slotName, userInput)
 
-				let possibleTransitionList = this.stateMachine.getPossibleTransitions();
-
-				// i need a transition function 
-				if (possibleTransitionList.length === 1) {
-					const transitionName = possibleTransitionList[0]?.name;
-					//console.log(possibleTransitionList[0]);
-					this.stateMachine.transition(transitionName);
-				} else if (possibleTransitionList.length > 1) {
-
-					// pick the conditional and validat to know if 
-					// whare are moving to the 'then' or 'else';
-					// how can i do that ????
-					//
-					//wha i need to make the destion is: 
-					// 1. what i have to validate (conditional if any)
-					// 2. the diferent sections of the steps then, else, steps 
-					// 3. pick based on the existance of the conditional 
-
-					// how can i get the conditional ?????
-					// i need to know the node conditioal 
-					// i also need easy acces to next node global data
-					// not only next step
-					//
-					// hay que extender el info stero para ademas de los steps 
-					// tener los datos por nodos y a que seccino pertenece cada step
-					//
-					// no quiero hacer cambio en como los steps funcionan 
-					// en el info solo es agregar otro field para nodes information 
-
-					console.log(possibleTransitionList);
-				}
-
-
+				// move to the next step
+				this.makeTransition(currentStepDetails)
+				// once this is updated i need to make sure that i send the instruccions to the state machine
 
 				// see if collected in the promt 
 				// if not then tell the rephraser to get it 
@@ -165,11 +150,15 @@ class DialogEngine {
 
 				break;
 			case 'ACTION':
+				// intereac ti actions manager
 				break;
 			case 'LINK':
+				// link moves then executes logic i guess
 				break;
 			case 'NEXT':
-				break;
+				// dont implement it next step type is not going to 
+				// be used anymore 
+				break
 
 		}
 		return dialogEngineState;
@@ -180,6 +169,7 @@ class DialogEngine {
 	}
 
 	executeAction() {
+
 
 	}
 
