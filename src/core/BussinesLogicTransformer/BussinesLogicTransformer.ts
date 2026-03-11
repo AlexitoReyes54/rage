@@ -1,7 +1,7 @@
 import BussinesLogicParser from "../BussinesLogicParser/BussinesLogicParser";
 import type { Transition } from "../StateMachine/types";
 import { type Workflow, type StepType } from "../BussinesLogicParser/types";
-import type { StepRegistryRecord, StatesStructure, NodeStuctureForStateMachine, StepPropertyTypes } from "./types";
+import type { StepRegistryRecord, StatesStructure, NodeStuctureForStateMachine, StepPropertyTypes, ConditionalSections, NodeBlocks } from "./types";
 import AppError from "../Errors/AppError";
 import StateMachine from "../StateMachine/StateMachine";
 import type { SlotsObject } from "../StateMachine/types";
@@ -9,8 +9,6 @@ import type { SlotsObject } from "../StateMachine/types";
 
 import { parseCondition } from "../BussinesLogicParser/utils/parseCondition";
 import visualizeWorkflow from "../StateMachine/utils/visualizeWorkflow";
-
-type conditionalSections = "then" | "else";
 
 function isThisAPointer(stateName: string) {
 	if (stateName.includes("END")) {
@@ -179,7 +177,7 @@ function formatStepName(step: StepType) {
 function generateStepName(
 	id: string,
 	step: StepType,
-	conditional?: conditionalSections) {
+	conditional?: ConditionalSections) {
 
 	let condition_inter = conditional === "then" ?
 		'_if_then_' :
@@ -193,18 +191,26 @@ function generateStepName(
 }
 
 
-function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: string = '', nodeConditionalString?: string): StepPropertyTypes {
+function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: string = '', stepBlock: NodeBlocks, isEntryStep: boolean, nodeConditionalString?: string): StepPropertyTypes {
 	const nodeConditional = nodeConditionalString ? parseCondition(nodeConditionalString) : undefined;
-	let base = { nodeId, nodeDescription, nodeConditional }
+
+	let propertyTypesBase = {
+		nodeId,
+		nodeDescription,
+		nodeConditional,
+		stepBlock,
+		isNodeEntryStep: isEntryStep
+	}
+
 	switch (step.type) {
 		case "LINK":
-			return { ...base, type: step.type, link: step.link }
+			return { ...propertyTypesBase, type: step.type, link: step.link }
 		case "NEXT":
-			return { ...base, type: step.type, next: step.next }
+			return { ...propertyTypesBase, type: step.type, next: step.next }
 		case "ACTION":
-			return { ...base, type: step.type, actionName: step.action, actionParams: step.params }
+			return { ...propertyTypesBase, type: step.type, actionName: step.action, actionParams: step.params }
 		case "COLLECT":
-			return { ...base, type: step.type, slotName: step.collect.name, slotType: step.collect.type, note: step.collect.note }
+			return { ...propertyTypesBase, type: step.type, slotName: step.collect.name, slotType: step.collect.type, note: step.collect.note }
 		default:
 			throw new AppError('no valid step type')
 	}
@@ -229,7 +235,7 @@ class StepRegistry {
 	static saveStepToNode(fileName: string,
 		nodeName: string,
 		stepName: string,
-		conditionalBlock?: conditionalSections) {
+		conditionalBlock?: ConditionalSections) {
 
 		if (!this.storage[fileName]) {
 			this.storage[fileName] = {
@@ -308,24 +314,27 @@ class BussinesLogicTransformer {
 
 		workflow.process.forEach(node => {
 			if (node.if) {
-				node.if.then.forEach(step => {
+				node.if.then.forEach((step, i) => {
 					let stepName = generateStepName(node.id, step, 'then')
-					let value = getStepTypeProperties(step, node.id, node.description,node.if?.condition)
+					const isEntryStep = i === 0;
+					let value = getStepTypeProperties(step, node.id, node.description, 'then', isEntryStep, node.if?.condition)
 					StepRegistry.saveSingleStep(fileName, stepName, value)
 					StepRegistry.saveStepToNode(fileName, node.id, stepName, 'then')
 				})
 
-				node.if.else.forEach(step => {
+				node.if.else.forEach((step, i) => {
 					let stepName = generateStepName(node.id, step, 'else')
-					let value = getStepTypeProperties(step, node.id, node.description, node.if?.condition)
+					const isEntryStep = i === 0;
+					let value = getStepTypeProperties(step, node.id, node.description, 'else', isEntryStep, node.if?.condition)
 					StepRegistry.saveSingleStep(fileName, stepName, value)
 					StepRegistry.saveStepToNode(fileName, node.id, stepName, 'else')
 				})
 			}
 
-			node.steps.forEach(step => {
+			node.steps.forEach((step, i) => {
 				let stepName = generateStepName(node.id, step)
-				let value = getStepTypeProperties(step, node.id, node.description,node.if?.condition)
+				const isEntryStep = i === 0;
+				let value = getStepTypeProperties(step, node.id, node.description, 'step', isEntryStep, node.if?.condition)
 				StepRegistry.saveSingleStep(fileName, stepName, value)
 				StepRegistry.saveStepToNode(fileName, node.id, stepName)
 			})

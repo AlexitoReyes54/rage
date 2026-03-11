@@ -89,7 +89,6 @@ class DialogEngine {
 		console.log('---------------------');
 		console.log(this.stepsDetailedInfo.steps);
 		console.log('---------------------');
-		console.log(this.stepsDetailedInfo.nodes);
 		
 		console.log('---------------------');
 

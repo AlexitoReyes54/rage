@@ -8,12 +8,17 @@ export interface NodeStuctureForStateMachine {
 	steps: string[];
 }
 
+export type ConditionalSections = "then" | "else";
+export type NodeBlocks = ConditionalSections | 'step';
+
 export type StatesStructure = Record<string, NodeStuctureForStateMachine>
 
 export interface BaseStepProperties {
 	nodeId: string;
 	nodeDescription: string | undefined;
 	nodeConditional?: Condition;
+	isNodeEntryStep: boolean;
+	stepBlock: NodeBlocks;
 }
 
 export interface LinkStepProperties extends BaseStepProperties {
