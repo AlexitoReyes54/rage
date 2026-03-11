@@ -6,6 +6,8 @@ import AppError from "../Errors/AppError";
 import StateMachine from "../StateMachine/StateMachine";
 import type { SlotsObject } from "../StateMachine/types";
 
+
+import { parseCondition } from "../BussinesLogicParser/utils/parseCondition";
 import visualizeWorkflow from "../StateMachine/utils/visualizeWorkflow";
 
 type conditionalSections = "then" | "else";
@@ -191,8 +193,9 @@ function generateStepName(
 }
 
 
-function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: string = ''): StepPropertyTypes {
-	let base = { nodeId, nodeDescription }
+function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: string = '', nodeConditionalString?: string): StepPropertyTypes {
+	const nodeConditional = nodeConditionalString ? parseCondition(nodeConditionalString) : undefined;
+	let base = { nodeId, nodeDescription, nodeConditional }
 	switch (step.type) {
 		case "LINK":
 			return { ...base, type: step.type, link: step.link }
@@ -223,8 +226,6 @@ class StepRegistry {
 		this.storage[fileName].steps[stepName] = data;
 	}
 
-	// TODO implement this to add the information in the node structure 
-	// and remmnber to add the condition to the node 
 	static saveStepToNode(fileName: string,
 		nodeName: string,
 		stepName: string,
@@ -237,8 +238,20 @@ class StepRegistry {
 			};
 		}
 
+		if (!this.storage[fileName].nodes[nodeName]) {
+			this.storage[fileName].nodes[nodeName] = {
+				evaluation: {
+					ifTrue: [],
+					ifFalse: []
+				},
+				steps: []
+			};
+		}
+
 		if (!conditionalBlock) {
-			this.storage[fileName]?.nodes[nodeName]?.steps.push(stepName)
+			let arrayOfSteps = this.storage[fileName]?.nodes[nodeName]?.steps || [];
+			arrayOfSteps.push(stepName)
+			this.storage[fileName].nodes[nodeName].steps = arrayOfSteps;
 			return;
 		}
 
@@ -246,9 +259,11 @@ class StepRegistry {
 			then: 'ifTrue',
 			else: 'ifFalse'
 		} as const;
-		const block: 'ifTrue' | 'ifFalse' = keyMap[conditionalBlock];
 
-		this.storage[fileName]?.nodes[nodeName]?.evaluation[block].push(stepName)
+		const block: 'ifTrue' | 'ifFalse' = keyMap[conditionalBlock];
+		let arrayOfConditionalSteps = this.storage[fileName]?.nodes[nodeName]?.evaluation[block] || [];
+		arrayOfConditionalSteps.push(stepName)
+		this.storage[fileName].nodes[nodeName].evaluation[block] = arrayOfConditionalSteps;
 	}
 
 	static getAllStepsFromDoc(fileName: string) {
@@ -295,14 +310,14 @@ class BussinesLogicTransformer {
 			if (node.if) {
 				node.if.then.forEach(step => {
 					let stepName = generateStepName(node.id, step, 'then')
-					let value = getStepTypeProperties(step, node.id, node.description)
+					let value = getStepTypeProperties(step, node.id, node.description,node.if?.condition)
 					StepRegistry.saveSingleStep(fileName, stepName, value)
 					StepRegistry.saveStepToNode(fileName, node.id, stepName, 'then')
 				})
 
 				node.if.else.forEach(step => {
 					let stepName = generateStepName(node.id, step, 'else')
-					let value = getStepTypeProperties(step, node.id, node.description)
+					let value = getStepTypeProperties(step, node.id, node.description, node.if?.condition)
 					StepRegistry.saveSingleStep(fileName, stepName, value)
 					StepRegistry.saveStepToNode(fileName, node.id, stepName, 'else')
 				})
@@ -310,7 +325,7 @@ class BussinesLogicTransformer {
 
 			node.steps.forEach(step => {
 				let stepName = generateStepName(node.id, step)
-				let value = getStepTypeProperties(step, node.id, node.description)
+				let value = getStepTypeProperties(step, node.id, node.description,node.if?.condition)
 				StepRegistry.saveSingleStep(fileName, stepName, value)
 				StepRegistry.saveStepToNode(fileName, node.id, stepName)
 			})

@@ -85,8 +85,14 @@ class DialogEngine {
 		let curr = this.stateMachine.getCurrentState();
 		let info = this.stepsDetailedInfo.steps[curr];
 
+		//console.log(this.stepsDetailedInfo.nodes);
+		console.log('---------------------');
+		console.log(this.stepsDetailedInfo.steps);
+		console.log('---------------------');
 		console.log(this.stepsDetailedInfo.nodes);
 		
+		console.log('---------------------');
+
 		// console.log(curr);
 		// console.log(info);
 

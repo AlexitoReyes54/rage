@@ -43,12 +43,14 @@ async function run() {
 	// flow state machine if there is any 
 	// understandinf params if any 
 	let flowToUse = 'medical';
-	let dialog = new DialogEngine(flowToUse);
+	let dialogEngine = new DialogEngine(flowToUse);
+
 	let props: CollectParam = {
 		collectedData: 'sample',
 		type: 'COLLECT'
 	}
-	dialog.excuteCurrentStep(props);
+
+	dialogEngine.excuteCurrentStep(props);
 
 	// this is a controller
 

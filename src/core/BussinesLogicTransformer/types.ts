@@ -8,7 +8,7 @@ export interface NodeStuctureForStateMachine {
 	steps: string[];
 }
 
-type StatesStructure = Record<string, NodeStuctureForStateMachine>
+export type StatesStructure = Record<string, NodeStuctureForStateMachine>
 
 export interface BaseStepProperties {
 	nodeId: string;
