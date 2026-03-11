@@ -1,7 +1,7 @@
 import StateMachine from "../StateMachine/StateMachine";
 import BussinesLogicTransformer from "../BussinesLogicTransformer/BussinesLogicTransformer";
 import AppError from "../Errors/AppError";
-import type { StepPropertyTypes, StepRegistryRecord } from "../BussinesLogicTransformer/types";
+import type { StepPropertyTypes, StepRegistryRecord, CollectStepProperties } from "../BussinesLogicTransformer/types";
 import type { StepTypeNames } from "../BussinesLogicParser/types";
 
 interface CollectedDataBase {
@@ -24,20 +24,6 @@ interface DialogEngineState {
 
 // TODO implement this fn this should be a util pritity +1 
 const nodeConditionIsTrue = (): boolean => true;
-
-
-/*
- * consider inplmenting a validation like this on for the booleans
-*
-*  function castToType(input: any, targetType: 'string' | 'number' | 'boolean') {
-  if (targetType === 'number') return Number(input);
-  if (targetType === 'boolean') return String(input).toLowerCase() === 'true';
-  return String(input);
-}
-*
-* for the next function
-
-* */
 
 function validateDataType(collectedData: any, expectedDataType: 'number' | 'string' | 'boolean') {
 	let typeOfCollectedData = typeof collectedData;
@@ -97,6 +83,29 @@ class DialogEngine {
 		}
 	}
 
+	processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState, collectedData: CollectParam) {
+
+		dialogEngineState.currentStepType = currentStepDetails.type;
+		const userInput = collectedData.collectedData;
+
+		if (!userInput) {
+			// do the same step again - collect the slot
+		}
+
+		if (!validateDataType(userInput, currentStepDetails.slotType)) {
+			throw new AppError('error collecting user inputs it seems like the llm is not returning the same type as the one defined in the bussine logic file ')
+		}
+
+		// here its a yes in principle so update this
+		this.stateMachine.updateSingleSlot(currentStepDetails.slotName, userInput)
+		//
+		// see if collected in the promt 
+		// if not then tell the rephraser to get it 
+		// if yes update the state machine then pass to the next step
+
+
+	}
+
 	// error that happends inside this functino has to be habdled with grace 
 	// be super carefull with them
 	excuteCurrentStep(collectedData: CollectParam): DialogEngineState {
@@ -126,27 +135,11 @@ class DialogEngine {
 
 		switch (currentStepDetails?.type) {
 			case 'COLLECT':
-				dialogEngineState.currentStepType = currentStepDetails.type;
-				const userInput = collectedData.collectedData;
+				this.processStepCollect(currentStepDetails, dialogEngineState, collectedData)
 
-				if (!userInput) {
-					// do the same step again - collect the slot
-				}
-
-				if (!validateDataType(userInput, currentStepDetails.slotType)) {
-					throw new AppError('error collecting user inputs it seems like the llm is not returning the same type as the one defined in the bussine logic file ')
-				}
-
-				// here its a yes in principle 
-				this.stateMachine.updateSingleSlot(currentStepDetails.slotName, userInput)
-
-				// move to the next step
 				this.makeTransition(currentStepDetails)
-				// once this is updated i need to make sure that i send the instruccions to the state machine
 
-				// see if collected in the promt 
-				// if not then tell the rephraser to get it 
-				// if yes update the state machine then pass to the next step
+				// once this is updated i need to make sure that i send the instruccions to the state machine
 
 				break;
 			case 'ACTION':
