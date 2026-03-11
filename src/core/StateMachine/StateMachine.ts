@@ -44,7 +44,7 @@ class StateMachine implements Observer {
 	}
 
 	getSlotValue(slotName: string) {
-		this.slotStorage.get(slotName)
+		return this.slotStorage.get(slotName);
 	}
 
 	private setSlotStorage(slotsObject: SlotsObject) {

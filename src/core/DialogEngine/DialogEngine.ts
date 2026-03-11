@@ -2,7 +2,7 @@ import StateMachine from "../StateMachine/StateMachine";
 import BussinesLogicTransformer from "../BussinesLogicTransformer/BussinesLogicTransformer";
 import AppError from "../Errors/AppError";
 import type { StepPropertyTypes, StepRegistryRecord, CollectStepProperties } from "../BussinesLogicTransformer/types";
-import type { StepTypeNames } from "../BussinesLogicParser/types";
+import type { Condition, ConditionCompareValueTypes, Operators, StepTypeNames } from "../BussinesLogicParser/types";
 
 interface CollectedDataBase {
 	type: StepTypeNames;
@@ -23,7 +23,38 @@ interface DialogEngineState {
 
 
 // TODO implement this fn this should be a util pritity +1 
-const nodeConditionIsTrue = (): boolean => true;
+const isNodeConditionTrue = (): boolean => true;
+
+function ifBooleanBreakTheApp(value: ConditionCompareValueTypes, fileName: string) {
+	if (typeof value === 'boolean') {
+		throw new AppError('error some boolean is not using a valid operator in this file' + fileName)
+	}
+}
+
+
+function executeCompare(
+	value: ConditionCompareValueTypes,
+	operator: Operators,
+	valueToMatch: ConditionCompareValueTypes,
+	fileName: string
+) {
+	const mathOperators: Operators[] = ['>', '<', '>=', '<='];
+
+	if (mathOperators.includes(operator)) {
+		ifBooleanBreakTheApp(value, fileName);
+	}
+
+	const operations: Record<string, (a: ConditionCompareValueTypes, b: ConditionCompareValueTypes) => boolean> = {
+		'>': (a, b) => a > b,
+		'<': (a, b) => a < b,
+		'>=': (a, b) => a >= b,
+		'<=': (a, b) => a <= b,
+		'==': (a, b) => a == b,
+		'!=': (a, b) => a != b,
+	};
+
+	return operations[operator]?.(value, valueToMatch);
+}
 
 function validateDataType(collectedData: any, expectedDataType: 'number' | 'string' | 'boolean') {
 	let typeOfCollectedData = typeof collectedData;
@@ -50,9 +81,32 @@ class DialogEngine {
 		this.stateMachine = workflowStateMachine;
 	}
 
-	intialize() {
+	isNodeConditionTrue(conditional: Condition): boolean {
+		const slotName = conditional.left;
 
+		if (!slotName) {
+			throw new AppError('there is a conditional referencing to a non existing slot')
+		}
+
+		const slotValue = this.stateMachine.getSlotValue(slotName)
+
+		if (!slotValue) {
+			throw new AppError('there is a conditional referencing to a non existing slot')
+		}
+
+		let isTrue = executeCompare(
+			slotValue,
+			conditional.operator,
+			conditional.right,
+			this.workflowName)
+
+		if (isTrue === undefined) {
+			throw new AppError('error during the validation of some conditional in the file' + this.workflowName)
+		}
+
+		return isTrue;
 	}
+
 
 	makeTransition(currentStepDetails: StepPropertyTypes) {
 		let possibleTransitionList = this.stateMachine.getPossibleTransitions();
@@ -63,7 +117,20 @@ class DialogEngine {
 
 			this.stateMachine.transition(transitionName);
 		} else if (possibleTransitionList.length === 3) {
-			const branch = nodeConditionIsTrue() ? 'ifTrue' : 'ifFalse';
+
+			const nodeNames = Object.keys(this.stepsDetailedInfo.nodes);
+			const currNodeIndex = nodeNames.indexOf(currentStepDetails.nodeId);
+			const nextNodeName = nodeNames[currNodeIndex + 1];
+
+			const nextNode = this.stepsDetailedInfo.nodes[nextNodeName as string];
+			const firstStepName = nextNode?.steps?.[0];
+			const nextStepDetail = this.stepsDetailedInfo.steps[firstStepName as string];
+
+			if (!nextStepDetail?.nodeConditional) {
+				throw new AppError(`Invalid link step transition in workflow: ${this.workflowName}`);
+			}
+
+			const branch = this.isNodeConditionTrue(nextStepDetail?.nodeConditional) ? 'ifTrue' : 'ifFalse';
 			const currStepName = possibleTransitionList[0]?.from;
 
 			if (!currentStepDetails.nodeConditional) {
@@ -130,7 +197,8 @@ class DialogEngine {
 		let currentStepDetails = this.stepsDetailedInfo.steps[curr];
 
 		console.log('---------------------');
-		console.log(currentStepDetails);
+		//console.log(currentStepDetails);
+		console.log(this.stepsDetailedInfo.steps);
 		console.log('---------------------');
 
 		switch (currentStepDetails?.type) {
