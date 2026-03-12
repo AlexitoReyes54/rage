@@ -1,8 +1,11 @@
 import StateMachine from "../StateMachine/StateMachine";
 import BussinesLogicTransformer from "../BussinesLogicTransformer/BussinesLogicTransformer";
 import AppError from "../Errors/AppError";
-import type { StepPropertyTypes, StepRegistryRecord, CollectStepProperties } from "../BussinesLogicTransformer/types";
+import type { StepPropertyTypes, StepRegistryRecord, CollectStepProperties, ActionStepProperties } from "../BussinesLogicTransformer/types";
 import type { Condition, ConditionCompareValueTypes, Operators, StepTypeNames } from "../BussinesLogicParser/types";
+import type { AllowedSlotValues } from "../StateMachine/types";
+import ActionsManager from "../ActionsManager/ActionsManager";
+import { actionDefinitions } from "../ActionsManager/actionsDefinitions";
 
 interface CollectedDataBase {
 	type: StepTypeNames;
@@ -163,9 +166,31 @@ class DialogEngine {
 		return true;
 	}
 
-	// TODO implement the action procesing and handleling for the 
-	// workflow 
-	private processStepAction(): boolean {
+	// TODO implement some type of retry system if the action fails
+	private processStepAction(actionStepDetail: ActionStepProperties, dialogEngineState: DialogEngineState): boolean {
+
+		let actionsParamsObj: Record<string, AllowedSlotValues> = {};
+
+		if (!actionStepDetail.actionParams) {
+			throw new AppError('there are not param values defined insede action step ' + actionStepDetail.actionName)
+		}
+
+		actionStepDetail.actionParams.forEach(param => {
+			let paramValue = this.stateMachine.getSlotValue(param);
+			if (!paramValue) {
+				throw new AppError('error this prop was not collected during the workflow ' + param + ' file ' + this.workflowName + ' in the action ' + actionStepDetail.actionName)
+			}
+			actionsParamsObj[param] = paramValue;
+		})
+
+		// i have to tell somehow what data type i send and what i expect
+		// i think that should be defined inside
+		// i have to define that and make it work property no matter what fn im calling
+		let x = actionDefinitions.definitions.find(a => a.name === actionStepDetail.actionName)
+
+		// call the fn 
+		// depending on the response i want to say all good or all bad
+
 		return true;
 	}
 
@@ -206,6 +231,7 @@ class DialogEngine {
 		// this has to be a prop as well as a return values 
 		// i have to create a new one instead of copyng what comes from the 
 		// props of the function
+		// TODO implement this param and make use of it is necessayi if not rething the implementation of this 
 		let dialogEngineState: DialogEngineState = {
 			stateMachine: this.stateMachine,
 			stepsDetailedInfo: this.stepsDetailedInfo,
@@ -234,7 +260,7 @@ class DialogEngine {
 				// dont implement it next step type is not going to 
 				// be used anymore 
 				break
-			default: 
+			default:
 				break;
 		}
 
