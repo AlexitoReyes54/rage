@@ -383,7 +383,7 @@ class BussinesLogicTransformer {
 
 			let machine = new StateMachine(firstState, states, transitions, workflowSlots)
 
-			visualizeWorkflow(machine.getStatesGrahp())
+			//visualizeWorkflow(machine.getStatesGrahp())
 			this.stateMachineMemoryStorage.set(fileName, machine)
 		} catch (error) {
 			console.log(error);

@@ -21,10 +21,6 @@ interface DialogEngineState {
 }
 
 
-
-// TODO implement this fn this should be a util pritity +1 
-const isNodeConditionTrue = (): boolean => true;
-
 function ifBooleanBreakTheApp(value: ConditionCompareValueTypes, fileName: string) {
 	if (typeof value === 'boolean') {
 		throw new AppError('error some boolean is not using a valid operator in this file' + fileName)
@@ -81,7 +77,7 @@ class DialogEngine {
 		this.stateMachine = workflowStateMachine;
 	}
 
-	isNodeConditionTrue(conditional: Condition): boolean {
+	private isNodeConditionTrue(conditional: Condition): boolean {
 		const slotName = conditional.left;
 
 		if (!slotName) {
@@ -108,11 +104,10 @@ class DialogEngine {
 	}
 
 
-	makeTransition(currentStepDetails: StepPropertyTypes) {
+	private makeTransition(currentStepDetails: StepPropertyTypes) {
 		let possibleTransitionList = this.stateMachine.getPossibleTransitions();
 
 		if (possibleTransitionList.length === 1 && possibleTransitionList[0]) {
-
 			const transitionName = possibleTransitionList[0]?.name;
 
 			this.stateMachine.transition(transitionName);
@@ -150,27 +145,58 @@ class DialogEngine {
 		}
 	}
 
-	processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState, collectedData: CollectParam) {
+
+	private processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState, collectedData: CollectParam) {
 
 		dialogEngineState.currentStepType = currentStepDetails.type;
 		const userInput = collectedData.collectedData;
 
 		if (!userInput) {
-			// do the same step again - collect the slot
+			return false;
 		}
 
 		if (!validateDataType(userInput, currentStepDetails.slotType)) {
 			throw new AppError('error collecting user inputs it seems like the llm is not returning the same type as the one defined in the bussine logic file ')
 		}
 
-		// here its a yes in principle so update this
 		this.stateMachine.updateSingleSlot(currentStepDetails.slotName, userInput)
-		//
-		// see if collected in the promt 
-		// if not then tell the rephraser to get it 
-		// if yes update the state machine then pass to the next step
+		return true;
+	}
 
+	// TODO implement the action procesing and handleling for the 
+	// workflow 
+	private processStepAction(): boolean {
+		return true;
+	}
 
+	private executeStepWorkflow(dialogEngineState: DialogEngineState, processFn: () => boolean) {
+		const isComplete = processFn();
+
+		if (!isComplete) {
+			// repeat instructions
+			return dialogEngineState;
+		}
+
+		this.makeTransition(this.getCurrentStepDetail());
+
+		if (this.getCurrentStepDetail()?.type === 'LINK') {
+			this.moveThroughLinkSteps();
+		}
+
+		const stepAfterLinks = this.getCurrentStepDetail()
+		// Generic "send instructions" logic
+		return dialogEngineState;
+	}
+
+	private getCurrentStepDetail() {
+		let currentStepName = this.stateMachine.getCurrentState();
+		let currentStepDetails = this.stepsDetailedInfo.steps[currentStepName];
+
+		if (!currentStepDetails) {
+			throw new AppError('the currrent step ' + currentStepName + ' does not exist in workflow ' + this.workflowName)
+		}
+
+		return currentStepDetails;
 	}
 
 	// error that happends inside this functino has to be habdled with grace 
@@ -188,55 +214,48 @@ class DialogEngine {
 			timesOnThisStep: 0
 		}
 
-		// how to execute steps:
-		// - see the step requirements 
-		// - the details are just for the llm not the engine logic 
-		// - it has to tell what to send to the llm
-
-		let curr = this.stateMachine.getCurrentState();
-		let currentStepDetails = this.stepsDetailedInfo.steps[curr];
-
-		console.log('---------------------');
-		//console.log(currentStepDetails);
-		console.log(this.stepsDetailedInfo.steps);
-		console.log('---------------------');
+		let currentStepDetails = this.getCurrentStepDetail()
 
 		switch (currentStepDetails?.type) {
 			case 'COLLECT':
-				this.processStepCollect(currentStepDetails, dialogEngineState, collectedData)
-
-				this.makeTransition(currentStepDetails)
-
-				// once this is updated i need to make sure that i send the instruccions to the state machine
-
-				break;
+				this.executeStepWorkflow(
+					dialogEngineState,
+					() => this.processStepCollect(currentStepDetails, dialogEngineState, collectedData)
+				);
 			case 'ACTION':
-				// intereac ti actions manager
-				break;
+				this.executeStepWorkflow(
+					dialogEngineState,
+					() => this.processStepAction()
+				);
 			case 'LINK':
-				// link moves then executes logic i guess
+				// this should never happend the code should never get here
 				break;
 			case 'NEXT':
 				// dont implement it next step type is not going to 
 				// be used anymore 
 				break
-
+			default: 
+				break;
 		}
+
 		return dialogEngineState;
 	}
 
+	private moveThroughLinkSteps() {
+		let isLinkStep: boolean = true;
+		let currentStepDetails = this.getCurrentStepDetail();
+
+		while (isLinkStep) {
+			this.makeTransition(currentStepDetails)
+			const nextStep = this.getCurrentStepDetail();
+			isLinkStep = nextStep?.type === 'LINK'
+		}
+	}
+
 	getCurrentStepInfo() {
-
+		// reflect if this is needed...
 	}
 
-	executeAction() {
-
-
-	}
-
-	updateSlot() {
-
-	}
 }
 
 export default DialogEngine;
