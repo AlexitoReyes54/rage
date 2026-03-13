@@ -4,7 +4,7 @@ import AppError from "../Errors/AppError";
 import type { StepPropertyTypes, StepRegistryRecord, CollectStepProperties, ActionStepProperties } from "../BussinesLogicTransformer/types";
 import type { Condition, ConditionCompareValueTypes, Operators, StepTypeNames } from "../BussinesLogicParser/types";
 import type { AllowedSlotValues } from "../StateMachine/types";
-import ActionsManager from "../ActionsManager/ActionsManager";
+import ActionsManager, { ActionsManager } from "../ActionsManager/ActionsManager";
 import { actionDefinitions } from "../ActionsManager/actionsDefinitions";
 
 interface CollectedDataBase {
@@ -167,9 +167,11 @@ class DialogEngine {
 	}
 
 	// TODO implement some type of retry system if the action fails
+	// TODO update this one to respond with the action respoonde msg so the llm has better info to response 
+	// to the user 
 	private processStepAction(actionStepDetail: ActionStepProperties, dialogEngineState: DialogEngineState): boolean {
-
-		let actionsParamsObj: Record<string, AllowedSlotValues> = {};
+		let propValues: AllowedSlotValues[] = []
+		const actionsManager = new ActionsManager();
 
 		if (!actionStepDetail.actionParams) {
 			throw new AppError('there are not param values defined insede action step ' + actionStepDetail.actionName)
@@ -180,18 +182,16 @@ class DialogEngine {
 			if (!paramValue) {
 				throw new AppError('error this prop was not collected during the workflow ' + param + ' file ' + this.workflowName + ' in the action ' + actionStepDetail.actionName)
 			}
-			actionsParamsObj[param] = paramValue;
+			propValues.push(paramValue)
 		})
 
-		// i have to tell somehow what data type i send and what i expect
-		// i think that should be defined inside
-		// i have to define that and make it work property no matter what fn im calling
-		let x = actionDefinitions.definitions.find(a => a.name === actionStepDetail.actionName)
+		const response = actionsManager.executeSingleAction(actionStepDetail.actionName, propValues)
 
-		// call the fn 
-		// depending on the response i want to say all good or all bad
+		if (response.isComplete) {
+			return true;
+		}
 
-		return true;
+		return false;
 	}
 
 	private executeStepWorkflow(dialogEngineState: DialogEngineState, processFn: () => boolean) {
@@ -248,11 +248,13 @@ class DialogEngine {
 					dialogEngineState,
 					() => this.processStepCollect(currentStepDetails, dialogEngineState, collectedData)
 				);
+				break
 			case 'ACTION':
 				this.executeStepWorkflow(
 					dialogEngineState,
-					() => this.processStepAction()
+					() => this.processStepAction(currentStepDetails, dialogEngineState)
 				);
+				break;
 			case 'LINK':
 				// this should never happend the code should never get here
 				break;
@@ -263,7 +265,6 @@ class DialogEngine {
 			default:
 				break;
 		}
-
 		return dialogEngineState;
 	}
 

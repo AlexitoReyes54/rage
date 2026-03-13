@@ -1,7 +1,14 @@
-export interface ActionDefinition<TParams = any, TResult = any> {
+export interface ActionResponse {
+	isComplete: boolean;
+	successMsg: string;
+	failureMsg: string
+}
+
+export interface ActionDefinition<TParams = any> {
 	name: string;
 	definition: string;
-	function: (params?: TParams) => TResult;
+	function: (params?: TParams) => ActionResponse;
+	expectedProps: string[]
 }
 
 export interface ActionDefinitionObject {

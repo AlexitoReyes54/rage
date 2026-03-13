@@ -1,9 +1,16 @@
-import type { ActionDefinition } from "../types"
+import type { ActionDefinition, ActionResponse } from "../types"
 
-let mockAction: ActionDefinition<void, string> = {
+const res: ActionResponse = {
+	isComplete: true,
+	failureMsg: "none",
+	successMsg: "this is a mock function"
+}
+
+let mockAction: ActionDefinition<void> = {
 	name: "mockAction",
 	definition: 'used to test that actions are capable of running ',
-	function: () => "this is a mock function"
+	function: () => res,
+	expectedProps: []
 }
 
 export default mockAction;

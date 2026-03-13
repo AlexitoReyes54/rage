@@ -212,6 +212,9 @@ class BussinesLogicParser {
 			// - actions are not valid insithe the conditional is has to happend in the steps
 			// - the flow entry is the first item in the process list of YAML file
 			// - there is no logic to support a node with no steps even if you are using a node as a conditional you need to have at least one mock steps to no break the program 
+			// - el orden de los props en el action del file es el orden en que se pasan a al action
+			//
+			// note: this has to be added to some kind of doc for preparing files 
 
 			this.validateFlowIsCorrect(result.data);
 			// TODO implement validation for the params in the actions steps
