@@ -4,61 +4,10 @@ import AppError from "../Errors/AppError";
 import type { StepPropertyTypes, StepRegistryRecord, CollectStepProperties, ActionStepProperties } from "../BussinesLogicTransformer/types";
 import type { Condition, ConditionCompareValueTypes, Operators, StepTypeNames } from "../BussinesLogicParser/types";
 import type { AllowedSlotValues } from "../StateMachine/types";
-import ActionsManager, { ActionsManager } from "../ActionsManager/ActionsManager";
-import { actionDefinitions } from "../ActionsManager/actionsDefinitions";
-
-interface CollectedDataBase {
-	type: StepTypeNames;
-}
-
-export interface CollectParam extends CollectedDataBase {
-	collectedData: string | boolean | number;
-}
-
-interface DialogEngineState {
-	stateMachine: StateMachine;
-	stepsDetailedInfo: StepRegistryRecord;
-	instructionsForLlm: string; // this should be a object
-	currentStepType: StepTypeNames;
-	timesOnThisStep: number;
-}
-
-
-function ifBooleanBreakTheApp(value: ConditionCompareValueTypes, fileName: string) {
-	if (typeof value === 'boolean') {
-		throw new AppError('error some boolean is not using a valid operator in this file' + fileName)
-	}
-}
-
-
-function executeCompare(
-	value: ConditionCompareValueTypes,
-	operator: Operators,
-	valueToMatch: ConditionCompareValueTypes,
-	fileName: string
-) {
-	const mathOperators: Operators[] = ['>', '<', '>=', '<='];
-
-	if (mathOperators.includes(operator)) {
-		ifBooleanBreakTheApp(value, fileName);
-	}
-
-	const operations: Record<string, (a: ConditionCompareValueTypes, b: ConditionCompareValueTypes) => boolean> = {
-		'>': (a, b) => a > b,
-		'<': (a, b) => a < b,
-		'>=': (a, b) => a >= b,
-		'<=': (a, b) => a <= b,
-		'==': (a, b) => a == b,
-		'!=': (a, b) => a != b,
-	};
-
-	return operations[operator]?.(value, valueToMatch);
-}
-
-function validateDataType(collectedData: any, expectedDataType: 'number' | 'string' | 'boolean') {
-	let typeOfCollectedData = typeof collectedData;
-	return typeOfCollectedData === expectedDataType ? true : false;
-}
+import { ActionsManager } from "../ActionsManager/ActionsManager";
+import type { CollectParam, DialogEngineState } from './types';
+import executeCompare from "./utils/executeCompare";
+import validateDataType from "./utils/validateDataType";
 
 class DialogEngine {
 	private stateMachine: StateMachine;
@@ -149,21 +98,26 @@ class DialogEngine {
 	}
 
 
-	private processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState, collectedData: CollectParam) {
+	private processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState) {
+		try {
+			const userInput = dialogEngineState.collectedData;
+			console.log(userInput);
 
-		dialogEngineState.currentStepType = currentStepDetails.type;
-		const userInput = collectedData.collectedData;
+			if (!userInput) {
+				return false;
+			}
 
-		if (!userInput) {
-			return false;
+			if (!validateDataType(userInput, currentStepDetails.slotType)) {
+				throw new AppError('error collecting user inputs it seems like the llm is not returning the same type as the one defined in the bussine logic file ')
+			}
+
+			this.stateMachine.updateSingleSlot(currentStepDetails.slotName, userInput)
+			return true;
+
+		} catch (error) {
+			//TODO refactor when an error happend to be more detailed and have more grace
+			return false
 		}
-
-		if (!validateDataType(userInput, currentStepDetails.slotType)) {
-			throw new AppError('error collecting user inputs it seems like the llm is not returning the same type as the one defined in the bussine logic file ')
-		}
-
-		this.stateMachine.updateSingleSlot(currentStepDetails.slotName, userInput)
-		return true;
 	}
 
 	// TODO implement some type of retry system if the action fails
@@ -188,17 +142,20 @@ class DialogEngine {
 		const response = actionsManager.executeSingleAction(actionStepDetail.actionName, propValues)
 
 		if (response.isComplete) {
+			dialogEngineState.instructionsForLlm = response.successMsg;
 			return true;
 		}
 
+		dialogEngineState.instructionsForLlm = response.failureMsg;
 		return false;
 	}
 
 	private executeStepWorkflow(dialogEngineState: DialogEngineState, processFn: () => boolean) {
 		const isComplete = processFn();
 
+		//console.log(dialogEngineState);
 		if (!isComplete) {
-			// repeat instructions
+			// send instructionsForLlm for the same step
 			return dialogEngineState;
 		}
 
@@ -209,7 +166,8 @@ class DialogEngine {
 		}
 
 		const stepAfterLinks = this.getCurrentStepDetail()
-		// Generic "send instructions" logic
+		// send instructionsForLlm for stepAfterLinks
+		//	dialogEngineState.timesOnThisStep++;
 		return dialogEngineState;
 	}
 
@@ -226,35 +184,30 @@ class DialogEngine {
 
 	// error that happends inside this functino has to be habdled with grace 
 	// be super carefull with them
-	excuteCurrentStep(collectedData: CollectParam): DialogEngineState {
+	excuteCurrentStep(state?: DialogEngineState): DialogEngineState {
 
-		// this has to be a prop as well as a return values 
-		// i have to create a new one instead of copyng what comes from the 
-		// props of the function
-		// TODO implement this param and make use of it is necessayi if not rething the implementation of this 
+		// this could be a global varible, why not ??/
 		let dialogEngineState: DialogEngineState = {
-			stateMachine: this.stateMachine,
-			stepsDetailedInfo: this.stepsDetailedInfo,
-			instructionsForLlm: '',
-			currentStepType: 'UNDEFINED',
-			timesOnThisStep: 0
+			stateMachine: state?.stateMachine ? state.stateMachine : this.stateMachine,
+			stepsDetailedInfo: state?.stepsDetailedInfo ? state.stepsDetailedInfo : this.stepsDetailedInfo,
+			instructionsForLlm: state?.instructionsForLlm ? state.instructionsForLlm : '',
+			timesOnThisStep: state?.instructionsForLlm ? state.timesOnThisStep : 0,
+			collectedData: state?.collectedData ? state.collectedData : undefined,
 		}
 
 		let currentStepDetails = this.getCurrentStepDetail()
 
 		switch (currentStepDetails?.type) {
 			case 'COLLECT':
-				this.executeStepWorkflow(
+				return this.executeStepWorkflow(
 					dialogEngineState,
-					() => this.processStepCollect(currentStepDetails, dialogEngineState, collectedData)
+					() => this.processStepCollect(currentStepDetails, dialogEngineState)
 				);
-				break
 			case 'ACTION':
-				this.executeStepWorkflow(
+				return this.executeStepWorkflow(
 					dialogEngineState,
 					() => this.processStepAction(currentStepDetails, dialogEngineState)
 				);
-				break;
 			case 'LINK':
 				// this should never happend the code should never get here
 				break;

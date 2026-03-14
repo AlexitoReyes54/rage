@@ -5,11 +5,61 @@ import AppError from "./src/core/Errors/AppError";
 import LLmProviderManager, { type ResponseInput } from "./src/core/LlmProviderManager/LlmProviderManager";
 import z from "zod";
 import createResponseRephraserPrompt from "./src/core/LlmProviderManager/promts/responseRephraser";
-import DialogEngine, { type CollectParam } from "./src/core/DialogEngine/DialogEngine";
+import DialogEngine from "./src/core/DialogEngine/DialogEngine";
 import { bussinesLogicFile } from "./src/core/BussinesLogicParser/types";
 import visualizeWorkflow from "./src/core/StateMachine/utils/visualizeWorkflow";
 
 import { COLLECT } from "./src/core/BussinesLogicParser/types";
+import type { CollectParam, DialogEngineState } from "./src/core/DialogEngine/types";
+import type StateMachine from "./src/core/StateMachine/StateMachine";
+import { log } from "node:console";
+
+//utils 
+const generateInstructions = (state: DialogEngineState) => {
+	let promt = ``;
+	let name = state.stateMachine?.getCurrentState();
+	const stepDetail = state.stepsDetailedInfo?.steps[name || ""]
+
+	if (!stepDetail || !name) {
+		return;
+	}
+
+	console.log(stepDetail);
+
+	switch (stepDetail.type) {
+
+		case 'COLLECT':
+			promt = `
+				your are a helpful assitant and:
+
+				your missino is to get this value from the user
+				${stepDetail.slotName} that is type: ${stepDetail.slotType}
+
+				durint this process is important to: ${stepDetail.nodeDescription}
+			`;
+			return promt;
+		case 'ACTION':
+			break;
+
+		default:
+			break;
+	}
+}
+
+
+const printCurrentStepName = (machine: StateMachine) => {
+	let s = machine.getCurrentState();
+	let slots = machine.getAllSlots();
+
+	console.log("-=============================-");
+	console.log('current step name: ' + s);
+	console.log('SLOTS:');
+	for (const [key, value] of slots) {
+		console.log('     current ' + key + ' value is: ' + value);
+	}
+	console.log("-=============================-");
+}
+
 
 
 async function run() {
@@ -35,44 +85,39 @@ async function run() {
 	let medicalSTepsInfo = stepsInfo['medical'];
 	let s = medicalMachine?.getCurrentState() as string;
 
-	//console.log(flowSTepsInfo?.steps[s]);
-	//console.log(workflows.get('flow'));
+	// where chathistory should happend ???
+	// in the db of course 
 
-	// the dialog engine has to have a a spesific state flow 
-	// what flos is going to use
-	// flow state machine if there is any 
-	// understandinf params if any 
 	let flowToUse = 'medical';
 	let dialogEngine = new DialogEngine(flowToUse);
 
-	let props: CollectParam = {
-		collectedData: 'sample',
-		type: 'COLLECT'
+	let state: DialogEngineState = {
+		collectedData: 'juan'
 	}
 
-	dialogEngine.excuteCurrentStep(props);
+	let res = dialogEngine.excuteCurrentStep(state);
+
+	if (res.stateMachine) {
+		printCurrentStepName(res.stateMachine)
+		let instructions = generateInstructions(res)
+		console.log(instructions);
+	}
+
 
 	// this is a controller
 
 	// get data logic
+	// 
 	// parse somtheing 
 	// use undertanding...
 	// use dialog 
 	// generate response 
+	//
 	// send response to client (whatsapp)
 	// i need a database for the state of the information
 	// the code just executes 
 	// how i can keep track of the dialog state and state machine status
 
-	// what this needs as input???
-	// state machine to know what to track 
-	// detail to know what each state means 
-
-	// what is the output ? 
-	// instruction for the parser 
-	// current snapshot of the sate machine 
-	// if needed responde of executed actions
-	// what should be it for now
 
 	const CalendarEvent = z.object({
 		name: z.string(),

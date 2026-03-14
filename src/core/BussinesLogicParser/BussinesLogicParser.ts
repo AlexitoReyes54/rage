@@ -223,14 +223,7 @@ class BussinesLogicParser {
 		} else {
 			throw new AppError("file structre is wrong review the documentation")
 		}
-
 	}
-
-
-
 }
-
-
-
 
 export default BussinesLogicParser;
