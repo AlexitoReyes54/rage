@@ -153,12 +153,14 @@ async function run() {
 	//let valueType = getValueType();
 
 	const c = z.object({
-		// how i know the type i need to know the type in any ????
+		// how i know the type i need to know the type in any ????yy
 		value: z.string().nullable().describe('how to add zod descriptions to the object values'),
 	});
 
 	let llmProviderManager = new LLmProviderManager({
-		model: 'gpt-4o-2024-08-06'
+		//model: 'gpt-4o-2024-08-06'
+		model: 'gpt-5-mini'
+
 	});
 
 	chatHistory.push({
