@@ -101,7 +101,6 @@ class DialogEngine {
 	private processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState) {
 		try {
 			const userInput = dialogEngineState.collectedData;
-			console.log(userInput);
 
 			if (!userInput) {
 				return false;
@@ -141,12 +140,16 @@ class DialogEngine {
 
 		const response = actionsManager.executeSingleAction(actionStepDetail.actionName, propValues)
 
+		if (!dialogEngineState.instructionsForLlm) {
+			dialogEngineState.instructionsForLlm = {};
+		}
+
 		if (response.isComplete) {
-			dialogEngineState.instructionsForLlm = response.successMsg;
+			dialogEngineState.instructionsForLlm.textInstructions = response.successMsg;
 			return true;
 		}
 
-		dialogEngineState.instructionsForLlm = response.failureMsg;
+		dialogEngineState.instructionsForLlm.textInstructions = response.failureMsg;
 		return false;
 	}
 
@@ -171,7 +174,7 @@ class DialogEngine {
 		return dialogEngineState;
 	}
 
-	private getCurrentStepDetail() {
+	getCurrentStepDetail() {
 		let currentStepName = this.stateMachine.getCurrentState();
 		let currentStepDetails = this.stepsDetailedInfo.steps[currentStepName];
 
@@ -190,7 +193,7 @@ class DialogEngine {
 		let dialogEngineState: DialogEngineState = {
 			stateMachine: state?.stateMachine ? state.stateMachine : this.stateMachine,
 			stepsDetailedInfo: state?.stepsDetailedInfo ? state.stepsDetailedInfo : this.stepsDetailedInfo,
-			instructionsForLlm: state?.instructionsForLlm ? state.instructionsForLlm : '',
+			instructionsForLlm: state?.instructionsForLlm ? state.instructionsForLlm : {},
 			timesOnThisStep: state?.instructionsForLlm ? state.timesOnThisStep : 0,
 			collectedData: state?.collectedData ? state.collectedData : undefined,
 		}

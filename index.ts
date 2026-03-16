@@ -13,39 +13,9 @@ import { COLLECT } from "./src/core/BussinesLogicParser/types";
 import type { CollectParam, DialogEngineState } from "./src/core/DialogEngine/types";
 import type StateMachine from "./src/core/StateMachine/StateMachine";
 import { log } from "node:console";
-
-//utils 
-const generateInstructions = (state: DialogEngineState) => {
-	let promt = ``;
-	let name = state.stateMachine?.getCurrentState();
-	const stepDetail = state.stepsDetailedInfo?.steps[name || ""]
-
-	if (!stepDetail || !name) {
-		return;
-	}
-
-	console.log(stepDetail);
-
-	switch (stepDetail.type) {
-
-		case 'COLLECT':
-			promt = `
-				your are a helpful assitant and:
-
-				your missino is to get this value from the user
-				${stepDetail.slotName} that is type: ${stepDetail.slotType}
-
-				durint this process is important to: ${stepDetail.nodeDescription}
-			`;
-			return promt;
-		case 'ACTION':
-			break;
-
-		default:
-			break;
-	}
-}
-
+import { undertandingPromt } from './src/core/LlmProviderManager/promts/undertandingPromt'
+import { setMaxIdleHTTPParsers } from "node:http";
+import type { StepPropertyTypes } from "./src/core/BussinesLogicTransformer/types";
 
 const printCurrentStepName = (machine: StateMachine) => {
 	let s = machine.getCurrentState();
@@ -60,7 +30,84 @@ const printCurrentStepName = (machine: StateMachine) => {
 	console.log("-=============================-");
 }
 
+let chatHistory: ResponseInput[] = [
+	{
+		role: 'user',
+		content: 'hello how are you ? '
+	},
+	{
+		role: 'assistant',
+		content: 'hello how can helo you today ?'
+	},
+	{
+		role: 'user',
+		content: 'i need help with my medical date'
+	},
+]
 
+
+function buildParsingPromt(params: {
+	history: string;
+	instructions: string;
+}) {
+	let prompt = undertandingPromt;
+	prompt = prompt
+		.replace("{{history}}", params.history)
+		.replace("{{instructions}}", params.instructions);
+	return prompt;
+}
+
+
+// TODO this requires a complete implementation implementation
+function getStepInstructions(stepProperty: StepPropertyTypes) {
+	switch (stepProperty.type) {
+		case 'ACTION':
+			break;
+		case "COLLECT":
+			let collectInstructions = `
+your job it to collect to celllect the {{slot}}, 
+consdier this: {{note}}
+the data type is {{dataType}}
+`
+			return collectInstructions
+				.replace("{{slot}}", stepProperty.slotName)
+				.replace("{{note}}", stepProperty.note || '')
+				.replace("{{dataType}}", stepProperty.slotType);
+		case "LINK":
+		case "NEXT":
+		default:
+			return '';
+	}
+
+	return '';
+}
+
+function formatHistoryIntoText(chathistory: ResponseInput[]): string {
+	return chathistory.map(msg => {
+		return msg.role === 'user' ? `U: ${msg.content}` : `B: ${msg.content}`
+	}).join('\n');
+}
+
+const chatUndertanding = (dialogEngineState: DialogEngineState, stepProperty: StepPropertyTypes): string => {
+	let output = { ...dialogEngineState }
+
+	if (!dialogEngineState.chatHistory) {
+		return '';
+	}
+
+	let textChatHistory = formatHistoryIntoText(dialogEngineState.chatHistory)
+	let instructions = getStepInstructions(stepProperty);
+	let promt = buildParsingPromt({
+		history: textChatHistory,
+		instructions: instructions
+	});
+
+	return promt;
+}
+
+function getValueType(type: any) {
+	return z.string();
+}
 
 async function run() {
 	const files = await readdir('./flows');
@@ -88,20 +135,55 @@ async function run() {
 	// where chathistory should happend ???
 	// in the db of course 
 
+	let state: DialogEngineState = {
+		collectedData: '',
+		chatHistory: chatHistory
+	}
+
 	let flowToUse = 'medical';
 	let dialogEngine = new DialogEngine(flowToUse);
+	// get current engine state
+	let stepProperty = dialogEngine.getCurrentStepDetail();
 
-	let state: DialogEngineState = {
-		collectedData: 'juan'
-	}
+	// exevute engine - can update state
+	let dState = dialogEngine.excuteCurrentStep(state);
 
-	let res = dialogEngine.excuteCurrentStep(state);
+	console.log(dState.instructionsForLlm);
+	let undertandPromt = chatUndertanding(state, stepProperty)
+	//let valueType = getValueType();
 
-	if (res.stateMachine) {
-		printCurrentStepName(res.stateMachine)
-		let instructions = generateInstructions(res)
-		console.log(instructions);
-	}
+	const c = z.object({
+		// how i know the type i need to know the type in any ????
+		value: z.string().nullable().describe('how to add zod descriptions to the object values'),
+	});
+
+	let llmProviderManager = new LLmProviderManager({
+		model: 'gpt-4o-2024-08-06'
+	});
+
+	chatHistory.push({
+		role: 'developer',
+		content: undertandPromt
+	})
+
+	console.log(undertandPromt);
+
+	let x = await llmProviderManager.askLLm(chatHistory, c);
+	console.log(x.output_text);
+
+	// 1. i have the promt --done
+	// 2. i have the response structure -- soft done
+	// 3. i have request the llm -- done 
+	// 4. send response to the engine -- done 
+
+
+	//	let res = dialogEngine.excuteCurrentStep(state);
+
+	//	if (res.stateMachine) {
+	//		printCurrentStepName(res.stateMachine)
+	//		let instructions = generateInstructions(res)
+	//		console.log(instructions);
+	//	}
 
 
 	// this is a controller
@@ -125,23 +207,6 @@ async function run() {
 		participants: z.array(z.string()),
 	});
 
-	let llmProviderManager = new LLmProviderManager({
-		//model: 'gpt-3.5-turbo'
-		model: 'gpt-4o-2024-08-06'
-	});
-
-	let p = createResponseRephraserPrompt({
-		topic: 'programacion',
-		concept: 'lua'
-	})
-	//console.log(p);
-
-	let inputs: ResponseInput[] = [
-		{
-			role: 'user',
-			content: p
-		},
-	]
 
 	//let x = await llmProviderManager.askLLm(inputs);
 	//let x = await llmProviderManager.askLLm(inputs, CalendarEvent);
