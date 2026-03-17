@@ -11,7 +11,24 @@ import visualizeWorkflow from "./src/core/StateMachine/utils/visualizeWorkflow";
 import type { CollectParam, DialogEngineState } from "./src/core/DialogEngine/types";
 import type StateMachine from "./src/core/StateMachine/StateMachine";
 import { undertandingPromt } from './src/core/LlmProviderManager/promts/undertandingPromt'
+import { responsePromt } from './src/core/LlmProviderManager/promts/responsePromt'
 import type { StepPropertyTypes } from "./src/core/BussinesLogicTransformer/types";
+import { parse } from "node:path";
+
+
+
+// TODO re-think promt structures, now all promts recive, the chat history and the instructions;
+function getResponsePromt(dialogEngineState: DialogEngineState, stepProperty: StepPropertyTypes): string {
+	let textChatHistory = formatHistoryIntoText(dialogEngineState.chatHistory)
+	let instructions = getStepInstructions(stepProperty);
+	let promt = buildParsingPromt({
+		history: textChatHistory,
+		instructions: instructions,
+		systemPromt: responsePromt
+	});
+
+	return promt;
+}
 
 const printCurrentStepName = (machine: StateMachine) => {
 	let s = machine.getCurrentState();
@@ -45,8 +62,9 @@ let chatHistory: ResponseInput[] = [
 function buildParsingPromt(params: {
 	history: string;
 	instructions: string;
+	systemPromt: string;
 }) {
-	let prompt = undertandingPromt;
+	let prompt = params.systemPromt;
 	prompt = prompt
 		.replace("{{history}}", params.history)
 		.replace("{{instructions}}", params.instructions);
@@ -61,7 +79,7 @@ function getStepInstructions(stepProperty: StepPropertyTypes) {
 			break;
 		case "COLLECT":
 			let collectInstructions = `
-your job it to collect to celllect the {{slot}}, 
+your job it to collect to celllect the {{slot}} slot, 
 consdier this: {{note}}
 the data type is {{dataType}}
 `
@@ -78,23 +96,25 @@ the data type is {{dataType}}
 	return '';
 }
 
-function formatHistoryIntoText(chathistory: ResponseInput[]): string {
-	return chathistory.map(msg => {
+function formatHistoryIntoText(chathistory: ResponseInput[] | undefined): string {
+	let chats = chatHistory;
+
+	if (!chats) {
+		return '';
+	}
+
+	return chats.map(msg => {
 		return msg.role === 'user' ? `U: ${msg.content}` : `B: ${msg.content}`
 	}).join('\n');
 }
 
 const chatUndertanding = (dialogEngineState: DialogEngineState, stepProperty: StepPropertyTypes): string => {
-
-	if (!dialogEngineState.chatHistory) {
-		return '';
-	}
-
 	let textChatHistory = formatHistoryIntoText(dialogEngineState.chatHistory)
 	let instructions = getStepInstructions(stepProperty);
 	let promt = buildParsingPromt({
 		history: textChatHistory,
-		instructions: instructions
+		instructions: instructions,
+		systemPromt: undertandingPromt
 	});
 
 	return promt;
@@ -143,11 +163,10 @@ async function run() {
 
 	console.log("initial state: ", dState.stateMachine?.getCurrentState());
 	let undertandPromt = chatUndertanding(state, stepProperty)
-	//let valueType = getValueType();
 
+	//let valueType = getValueType();
 	// TODO this has to be reviewed, the return value types depends on the slot i want to collect it can not be a general string for everithing 
 	const c = z.object({
-		// how i know the type i need to know the type in any ????yy
 		value: z.string().nullable().describe('how to add zod descriptions to the object values'),
 	});
 
@@ -156,7 +175,7 @@ async function run() {
 		//model: 'gpt-5-mini'
 	});
 
-	let chatHistoryBuffer = chatHistory;
+	let chatHistoryBuffer = [...chatHistory];
 
 	chatHistoryBuffer.push({
 		role: 'developer',
@@ -172,25 +191,31 @@ async function run() {
 	let last_state: DialogEngineState = { ...dState, collectedData: llm_response_obj.value }
 	let new_state = dialogEngine.excuteCurrentStep(last_state)
 
-
 	// responding 
-	new_state // represent current state
+	// TODO there is somthing going on here where the response is not what im looking for 
+	//
 	let curr_step_properties = dialogEngine.getCurrentStepDetail();
 	let response_promt = getResponsePromt(new_state, curr_step_properties);
 
-	let res_chatHistoryBuffer = chatHistory;
-	res_chatHistoryBuffer.push(response_promt)
+	let res_chatHistoryBuffer = [...chatHistory];
+
+	res_chatHistoryBuffer.push({
+		role: 'developer',
+		content: response_promt
+	})
+
+	// TODO improve the response_promt has to much space for improvement
+	console.log(response_promt);
+	
 
 	let final_response = await llmProviderManager.askLLm(res_chatHistoryBuffer);
-	
+	console.log(final_response.output_text);
 	// add response to the chat history
 	// send data to the chat 
-	
-	console.log(final_response.output_text);
+
 
 	// gen promt with somtehing like chatUndertanding but for responds(using the curr step data, to send instrcuctions ) -- complex
 	// send msg to chat-- simple
-
 
 	// this is a controller
 
