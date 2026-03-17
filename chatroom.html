@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>demo chat room</title>
+	<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
+		integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
+		crossorigin="anonymous"></script>
+	<meta name="htmx-config" content='{"selfRequestsOnly":false}'>
+
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+		integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
+		crossorigin="anonymous">
+</head>
+
+<body>
+	<!--  header -->
+	<nav class="navbar navbar-dark bg-dark">
+		<div class="container-fluid">
+			<a class="navbar-brand" href="#">ChatPilot</a>
+		</div>
+	</nav>
+
+
+	<!--  body -->
+	<div id="chat-window" class="bg-light d-flex flex-column-reverse p-3" style="height: 80vh; overflow-y: auto;">
+
+		<div id="chat-messages" class="d-flex flex-column">
+
+			<div hx-get="/messages?page=2" hx-trigger="revealed" hx-swap="afterend"
+				class="text-center text-muted small py-2">
+				<div class="spinner-border spinner-border-sm" role="status"></div>
+				Loading history...
+			</div>
+
+			<div class="alert alert-secondary mb-2 align-self-start" style="max-width: 80%;">
+				Older message... scroll up to see more.
+			</div>
+
+			<div class="alert alert-primary mb-2 align-self-end" style="max-width: 80%;">
+				Hello! This is a recent message.
+			</div>
+
+
+		</div>
+	</div>
+
+	<!--  input -->
+	<div class="p-3 bg-white border-top">
+		<form hx-post="/send-message" hx-target="#chat-messages" hx-swap="beforeend">
+			<div class="input-group">
+				<input type="text" name="msg" class="form-control" placeholder="Type a message...">
+				<button class="btn btn-primary">Send</button>
+			</div>
+		</form>
+	</div>
+
+
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+		integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+		crossorigin="anonymous"></script>
+</body>
+
+</html>

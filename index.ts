@@ -205,8 +205,8 @@ async function run() {
 	})
 
 	// TODO improve the response_promt has to much space for improvement
-	console.log(response_promt);
-	
+	///	console.log(response_promt);
+
 
 	let final_response = await llmProviderManager.askLLm(res_chatHistoryBuffer);
 	console.log(final_response.output_text);

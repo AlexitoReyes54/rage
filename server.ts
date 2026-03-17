@@ -1,14 +1,13 @@
-//TODO rename the index file into chatroom.html
-import index from './index.html'
+import chatroom from './chatroom.html'
 
 const s = Bun.serve({
-
 	routes: {
-		'/': index
+		'/': chatroom
 	},
-
 	fetch(req) {
-
 		return new Response("Not Found", { status: 404 });
 	},
 })
+
+console.log('app running');
+
