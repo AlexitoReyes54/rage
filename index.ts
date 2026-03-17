@@ -1,20 +1,16 @@
-// lets test the implementation for setting all the yaml files
 import { readdir } from "node:fs/promises";
 import BussinesLogicTransformer from "./src/core/BussinesLogicTransformer/BussinesLogicTransformer";
 import AppError from "./src/core/Errors/AppError";
 import LLmProviderManager, { type ResponseInput } from "./src/core/LlmProviderManager/LlmProviderManager";
 import z from "zod";
-import createResponseRephraserPrompt from "./src/core/LlmProviderManager/promts/responseRephraser";
 import DialogEngine from "./src/core/DialogEngine/DialogEngine";
+
 import { bussinesLogicFile } from "./src/core/BussinesLogicParser/types";
 import visualizeWorkflow from "./src/core/StateMachine/utils/visualizeWorkflow";
 
-import { COLLECT } from "./src/core/BussinesLogicParser/types";
 import type { CollectParam, DialogEngineState } from "./src/core/DialogEngine/types";
 import type StateMachine from "./src/core/StateMachine/StateMachine";
-import { log } from "node:console";
 import { undertandingPromt } from './src/core/LlmProviderManager/promts/undertandingPromt'
-import { setMaxIdleHTTPParsers } from "node:http";
 import type { StepPropertyTypes } from "./src/core/BussinesLogicTransformer/types";
 
 const printCurrentStepName = (machine: StateMachine) => {
@@ -41,7 +37,7 @@ let chatHistory: ResponseInput[] = [
 	},
 	{
 		role: 'user',
-		content: 'i need help with my medical date'
+		content: 'i need help with my medical date, my name as a patient is juan soto '
 	},
 ]
 
@@ -89,7 +85,6 @@ function formatHistoryIntoText(chathistory: ResponseInput[]): string {
 }
 
 const chatUndertanding = (dialogEngineState: DialogEngineState, stepProperty: StepPropertyTypes): string => {
-	let output = { ...dialogEngineState }
 
 	if (!dialogEngineState.chatHistory) {
 		return '';
@@ -142,50 +137,59 @@ async function run() {
 
 	let flowToUse = 'medical';
 	let dialogEngine = new DialogEngine(flowToUse);
-	// get current engine state
 	let stepProperty = dialogEngine.getCurrentStepDetail();
 
-	// exevute engine - can update state
 	let dState = dialogEngine.excuteCurrentStep(state);
 
-	console.log(dState.instructionsForLlm);
+	console.log("initial state: ", dState.stateMachine?.getCurrentState());
 	let undertandPromt = chatUndertanding(state, stepProperty)
 	//let valueType = getValueType();
 
+	// TODO this has to be reviewed, the return value types depends on the slot i want to collect it can not be a general string for everithing 
 	const c = z.object({
 		// how i know the type i need to know the type in any ????yy
 		value: z.string().nullable().describe('how to add zod descriptions to the object values'),
 	});
 
 	let llmProviderManager = new LLmProviderManager({
-		//model: 'gpt-4o-2024-08-06'
-		model: 'gpt-5-mini'
-
+		model: 'gpt-4o-2024-08-06'
+		//model: 'gpt-5-mini'
 	});
 
-	chatHistory.push({
+	let chatHistoryBuffer = chatHistory;
+
+	chatHistoryBuffer.push({
 		role: 'developer',
 		content: undertandPromt
 	})
 
-	console.log(undertandPromt);
 
-	let x = await llmProviderManager.askLLm(chatHistory, c);
-	console.log(x.output_text);
-
-	// 1. i have the promt --done
-	// 2. i have the response structure -- soft done
-	// 3. i have request the llm -- done 
-	// 4. send response to the engine -- done 
+	let res_x = await llmProviderManager.askLLm(chatHistoryBuffer, c);
+	let llm_response_obj = JSON.parse(res_x.output_text);
+	console.log(llm_response_obj);
 
 
-	//	let res = dialogEngine.excuteCurrentStep(state);
+	let last_state: DialogEngineState = { ...dState, collectedData: llm_response_obj.value }
+	let new_state = dialogEngine.excuteCurrentStep(last_state)
 
-	//	if (res.stateMachine) {
-	//		printCurrentStepName(res.stateMachine)
-	//		let instructions = generateInstructions(res)
-	//		console.log(instructions);
-	//	}
+
+	// responding 
+	new_state // represent current state
+	let curr_step_properties = dialogEngine.getCurrentStepDetail();
+	let response_promt = getResponsePromt(new_state, curr_step_properties);
+
+	let res_chatHistoryBuffer = chatHistory;
+	res_chatHistoryBuffer.push(response_promt)
+
+	let final_response = await llmProviderManager.askLLm(res_chatHistoryBuffer);
+	
+	// add response to the chat history
+	// send data to the chat 
+	
+	console.log(final_response.output_text);
+
+	// gen promt with somtehing like chatUndertanding but for responds(using the curr step data, to send instrcuctions ) -- complex
+	// send msg to chat-- simple
 
 
 	// this is a controller
@@ -201,18 +205,6 @@ async function run() {
 	// i need a database for the state of the information
 	// the code just executes 
 	// how i can keep track of the dialog state and state machine status
-
-
-	const CalendarEvent = z.object({
-		name: z.string(),
-		date: z.string(),
-		participants: z.array(z.string()),
-	});
-
-
-	//let x = await llmProviderManager.askLLm(inputs);
-	//let x = await llmProviderManager.askLLm(inputs, CalendarEvent);
-	//console.log(x.output_text);
 }
 
 run();
