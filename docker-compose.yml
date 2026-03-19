@@ -1,0 +1,8 @@
+services:
+  backend:
+    build: .
+    container_name: bun-backend
+    restart: always
+    ports:
+      - "3000:3000"
+

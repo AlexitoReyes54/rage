@@ -202,10 +202,10 @@ class BussinesLogicParser {
 	}
 
 	parserYamlIntoProcessFile(yamlFile: string) {
-		const result = ProcessFile.safeParse(YAML.parse(yamlFile))
+		let file = YAML.parse(yamlFile)
+		const result = ProcessFile.safeParse(file)
 		if (result.success) {
 			this.validateSlots(result.data);
-
 			this.validateContidiontal(result.data);
 
 			// RULES FOR CREATING YAML FILES:

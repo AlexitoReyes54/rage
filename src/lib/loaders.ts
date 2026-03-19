@@ -11,6 +11,9 @@ export default async function loadAllYmlFiles() {
 		if (!fileName) {
 			throw new AppError('some flow file has not the right format ')
 		}
+		if (currentFileContent === undefined) {
+			console.log(fileName);
+		}
 		BussinesLogicTransformer.loadYamlIntoMemory(fileName, currentFileContent);
 	})).catch(e => {
 		console.log(e);

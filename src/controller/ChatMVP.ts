@@ -74,7 +74,6 @@ class ChatController {
 
 			this.dbClient.save_msg(sessionId, aiResponse, 0); // 0 = IA
 
-			await new Promise(resolve => setTimeout(resolve, 1000));
 			ws.send(JSON.stringify({
 				type: "msg",
 				text: aiResponse,
