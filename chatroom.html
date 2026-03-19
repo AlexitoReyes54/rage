@@ -19,48 +19,97 @@
 	<!--  header -->
 	<nav class="navbar navbar-dark bg-dark">
 		<div class="container-fluid">
-			<a class="navbar-brand" href="#">ChatPilot</a>
+			<a class="navbar-brand" href="#">chat</a>
 		</div>
 	</nav>
 
 
 	<!--  body -->
 	<div id="chat-window" class="bg-light d-flex flex-column-reverse p-3" style="height: 80vh; overflow-y: auto;">
-
 		<div id="chat-messages" class="d-flex flex-column">
-
-			<div hx-get="/messages?page=2" hx-trigger="revealed" hx-swap="afterend"
-				class="text-center text-muted small py-2">
-				<div class="spinner-border spinner-border-sm" role="status"></div>
-				Loading history...
+			<div class="text-center text-muted small py-2">
+				Gracias por ayudar ❤️
 			</div>
-
-			<div class="alert alert-secondary mb-2 align-self-start" style="max-width: 80%;">
-				Older message... scroll up to see more.
-			</div>
-
-			<div class="alert alert-primary mb-2 align-self-end" style="max-width: 80%;">
-				Hello! This is a recent message.
-			</div>
-
 
 		</div>
 	</div>
 
 	<!--  input -->
 	<div class="p-3 bg-white border-top">
-		<form hx-post="/send-message" hx-target="#chat-messages" hx-swap="beforeend">
-			<div class="input-group">
-				<input type="text" name="msg" class="form-control" placeholder="Type a message...">
-				<button class="btn btn-primary">Send</button>
-			</div>
-		</form>
+		<div class="input-group">
+			<input type="text" name="msg" id="message-input" class="form-control"
+				placeholder="Escribe un mensaje..." autocomplete="off">
+			<button class="btn btn-primary" onclick="sendMsg()">Send</button>
+		</div>
 	</div>
 
+	<script>
+		let msgsValues = [];
+		const socket = new WebSocket("ws://localhost:3000/msg");
+		socket.onmessage = (event) => {
+			// when i recive a response from the server;
+			let d = JSON.parse(event.data)
+			msgsValues.push({
+				text: d.text,
+				send: 'bot'
+			})
+			renderMsgs()
+		};
+
+		socket.onopen = () => {
+			// do somthing when the conexion is open
+		};
+
+		function sendMsg() {
+			const input = document.getElementById('message-input');
+			const msg = input.value;
+			input.value = "";
+			let msgToSend = JSON.stringify({
+				text: msg || ""
+			})
+			msgsValues.push({
+				text: msg,
+				send: 'human'
+			})
+			socket.send(msgToSend)
+		}
+
+		function renderMsgs() {
+			const container = document.getElementById('chat-messages');
+
+			const msgs = msgsValues;
+			console.log(msgs)
+
+			// 1. Clear container (optional)
+			container.innerHTML = '';
+
+			// 2. Loop through the array
+			msgs.forEach(msg => {
+				let html = '';
+
+				if (msg.send === 'bot') {
+					// Bot: Gray background, aligned to START (left)
+					html = `
+                <div class="alert alert-secondary mb-2 align-self-start" style="max-width: 80%;">
+                    ${msg.text}
+                </div>`;
+				} else {
+					// Human: Blue background, aligned to END (right)
+					html = `
+                <div class="alert alert-primary mb-2 align-self-end" style="max-width: 80%;">
+                    ${msg.text}
+                </div>`;
+				}
+
+				container.insertAdjacentHTML('beforeend', html);
+			});
+
+			// 4. Auto-scroll to bottom after loading
+			container.scrollTop = container.scrollHeight;
+		}
+	</script>
 
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
 		integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
 		crossorigin="anonymous"></script>
 </body>
-
-</html>

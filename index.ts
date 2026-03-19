@@ -14,7 +14,7 @@ import { undertandingPromt } from './src/core/LlmProviderManager/promts/undertan
 import { responsePromt } from './src/core/LlmProviderManager/promts/responsePromt'
 import type { StepPropertyTypes } from "./src/core/BussinesLogicTransformer/types";
 import { parse } from "node:path";
-
+import loadAllYmlFiles from "./src/lib/loaders";
 
 
 // TODO re-think promt structures, now all promts recive, the chat history and the instructions;
@@ -26,7 +26,6 @@ function getResponsePromt(dialogEngineState: DialogEngineState, stepProperty: St
 		instructions: instructions,
 		systemPromt: responsePromt
 	});
-
 	return promt;
 }
 
@@ -125,27 +124,10 @@ function getValueType(type: any) {
 }
 
 async function run() {
-	const files = await readdir('./flows');
+	loadAllYmlFiles()
 
-	await Promise.all(files.map(async (file) => {
-		let currentFileContent = await Bun.file(`./flows/${file}`).text();
-		let fileName = file.split(".")[0];
-		if (!fileName) {
-			throw new AppError('some flow file has not the right format ')
-		}
-		BussinesLogicTransformer.loadYamlIntoMemory(fileName, currentFileContent);
-	})).catch(e => {
-		console.log(e);
-		throw new AppError('error loading the flow files')
-	})
-
-	let workflows = BussinesLogicTransformer.getWorkflowsMapStore()
-	let stepsInfo = BussinesLogicTransformer.getAllWorkflowsStepsInfo()
-	let machine = BussinesLogicTransformer.getStateMachinesMapStore()
-
-	let medicalMachine = machine.get('medical');
-	let medicalSTepsInfo = stepsInfo['medical'];
-	let s = medicalMachine?.getCurrentState() as string;
+	// code for the logic of the dialog engine usage
+	let stateMachine = BussinesLogicTransformer.getStateMachinesMapStore()
 
 	// where chathistory should happend ???
 	// in the db of course 
