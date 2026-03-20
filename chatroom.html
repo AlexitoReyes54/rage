@@ -47,7 +47,7 @@
 		let msgsValues = [];
 		const host = window.location.hostname;
 		console.log(host);
-		const socket = new WebSocket(`ws://${host}/msg`);
+		const socket = new WebSocket(`/msg`);
 		socket.onmessage = (event) => {
 			// when i recive a response from the server;
 			let d = JSON.parse(event.data)
