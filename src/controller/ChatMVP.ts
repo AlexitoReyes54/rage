@@ -12,15 +12,51 @@ import LLmProviderManager, { type ResponseInput } from "../core/LlmProviderManag
 import z from "zod";
 import { bussinesLogicFile } from "./src/core/BussinesLogicParser/types";
 import visualizeWorkflow from "./src/core/StateMachine/utils/visualizeWorkflow";
-import { DialogEngineState, type CollectParam } from "./src/core/DialogEngine/types";
-import type StateMachine from "./src/core/StateMachine/StateMachine";
+import type { DialogEngineState } from "./../core/DialogEngine/types";
+import type StateMachine from "../../src/core/StateMachine/StateMachine";
 import { undertandingPromt } from './src/core/LlmProviderManager/promts/undertandingPromt'
 import { responsePromt } from './src/core/LlmProviderManager/promts/responsePromt'
 import type { StepPropertyTypes } from "./src/core/BussinesLogicTransformer/types";
+import { SlotTypes } from "../core/BussinesLogicParser/types";
+
+const printCurrentStepName = (machine: StateMachine) => {
+	let s = machine.getCurrentState();
+	let slots = machine.getAllSlots();
+
+	console.log("-=============================-");
+	console.log('current step name: ' + s);
+	console.log('SLOTS:');
+	for (const [key, value] of slots) {
+		console.log('     current ' + key + ' value is: ' + value);
+	}
+	console.log("-=============================-");
+}
+
 
 const ChatResponseStructure = z.object({
 	value: z.string().nullable().describe('how to add zod descriptions to the object values'),
 });
+
+function getResSructure(slotType: SlotTypes) {
+	let valueType;
+	switch (slotType) {
+		case 'string':
+			valueType = z.string().nullable().describe('');
+			break;
+		case "number":
+			valueType = z.number().nullable().describe('');
+		case "boolean":
+			valueType = z.boolean().nullable().describe('');
+		default:
+			valueType = z.string().nullable().describe('');
+			break;
+	}
+	console.log(slotType);
+
+	return z.object({
+		value: valueType,
+	});
+}
 
 export type WebSocketData = {
 	sessionId: string
@@ -46,11 +82,20 @@ class ChatController {
 		let state = this.dialogEngineStateStorage.get(sessionId);
 
 		if (!state) {
-			state = {} as DialogEngineState; // O new DialogEngineState() si es clase
+			console.log('created thin run', sessionId);
+
+			let chatHistory = this.parseMsgsForLlm(sessionId);
+			state = { chatHistory } as DialogEngineState; // O new DialogEngineState() si es clase
 			this.dialogEngineStateStorage.set(sessionId, state);
+		} else {
+			console.log('already exists', sessionId);
 		}
 
 		return state;
+	}
+
+	private saveState(sessionId: SessionId, state: DialogEngineState) {
+		this.dialogEngineStateStorage.set(sessionId, state)
 	}
 
 	constructor() {
@@ -109,26 +154,38 @@ class ChatController {
 		const workflowToBeUse = 'medical';
 		const llmModelToBeUse = 'gpt-4o-2024-08-06';
 
-		let chatHistory: ResponseInput[] = this.parseMsgsForLlm(sessionId);
 		let initialState: DialogEngineState = this.getOrCreateState(sessionId)
-
 		let llmClient = new LLmProviderManager({ model: llmModelToBeUse });
 		let dialogEngine = new DialogEngine(workflowToBeUse);
 		let initialStepProperties = dialogEngine.getCurrentStepDetail();
+		let chatHistory = this.parseMsgsForLlm(sessionId);
+		initialState.chatHistory = chatHistory;
 		let undertandPromt = chatUndertanding(initialState, initialStepProperties)
 
 		let undertandChatHistoryBuffer: ResponseInput[] = [...chatHistory, { role: 'developer', content: undertandPromt }];
 
-		let extractedParams = await llmClient.askLLm(undertandChatHistoryBuffer, ChatResponseStructure);
+		// ChatResponseStructure has to have a dinamyc type for the collected value from the chat
+		let slotStuctureType = initialStepProperties.type === 'COLLECT' ? getResSructure(initialStepProperties.slotType) : ChatResponseStructure;
+		let extractedParams = await llmClient.askLLm(undertandChatHistoryBuffer, slotStuctureType);
+
 		let structuedOutput = JSON.parse(extractedParams.output_text);
 		let updatedState = dialogEngine.excuteCurrentStep({ ...initialState, collectedData: structuedOutput.value })
+
+		// this is debbuging
+		let v = initialStepProperties.type === 'COLLECT' ? initialStepProperties : null
+		if (v) {
+			printCurrentStepName(updatedState.stateMachine);
+		}
 
 		// responding 
 		let updatedStepProperties = dialogEngine.getCurrentStepDetail();
 		let responsePromt = getResponsePromt(updatedState, updatedStepProperties);
+
+		console.log(responsePromt);
 		let responseChatHistoryBuffer: ResponseInput[] = [...chatHistory, { role: 'developer', content: responsePromt }];
 
 		let res = await llmClient.askLLm(responseChatHistoryBuffer);
+
 		let llm_msg = res.output_text;
 		return llm_msg;
 	}

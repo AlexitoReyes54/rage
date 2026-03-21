@@ -9,6 +9,7 @@ function bootstrap() {
 	loadAllYmlFiles()
 
 	Bun.serve({
+		port:3001,
 		routes: {
 			'/': chatroom,
 			'/msg': (req, server) => {
@@ -16,6 +17,7 @@ function bootstrap() {
 				const sessionId = crypto.randomUUID();
 
 				client.create_new_session(sessionId, "")
+				console.info('New session created', sessionId);
 
 				if (server.upgrade(req, {
 					data: { sessionId }

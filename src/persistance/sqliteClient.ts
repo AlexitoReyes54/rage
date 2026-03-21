@@ -78,7 +78,7 @@ class PersistanceChatClient {
   ORDER BY timestamp ASC
 `);
 		const messages = getMessagesBySession.all({ $session_id: session_id });
-		if (messages.length === 0 ) return [];
+		if (messages.length === 0) return [];
 		return messages;
 	}
 

@@ -101,6 +101,8 @@ class DialogEngine {
 	private processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState) {
 		try {
 			const userInput = dialogEngineState.collectedData;
+			console.log('collect step user input: ',userInput);
+			
 
 			if (!userInput) {
 				return false;
@@ -188,7 +190,6 @@ class DialogEngine {
 	// error that happends inside this functino has to be habdled with grace 
 	// be super carefull with them
 	excuteCurrentStep(state?: DialogEngineState): DialogEngineState {
-
 		// this could be a global varible, why not ??/
 		let dialogEngineState: DialogEngineState = {
 			stateMachine: state?.stateMachine ? state.stateMachine : this.stateMachine,
@@ -196,8 +197,8 @@ class DialogEngine {
 			instructionsForLlm: state?.instructionsForLlm ? state.instructionsForLlm : {},
 			timesOnThisStep: state?.instructionsForLlm ? state.timesOnThisStep : 0,
 			collectedData: state?.collectedData ? state.collectedData : undefined,
+			chatHistory: state?.chatHistory ? state.chatHistory : undefined
 		}
-
 		let currentStepDetails = this.getCurrentStepDetail()
 
 		switch (currentStepDetails?.type) {
