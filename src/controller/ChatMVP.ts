@@ -41,12 +41,16 @@ function getResSructure(slotType: SlotTypes) {
 	let valueType;
 	switch (slotType) {
 		case 'string':
+			console.log('string struc');
 			valueType = z.string().nullable().describe('');
 			break;
 		case "number":
 			valueType = z.number().nullable().describe('');
+			break;
 		case "boolean":
+			console.log('bool struc');
 			valueType = z.boolean().nullable().describe('');
+			break;
 		default:
 			valueType = z.string().nullable().describe('');
 			break;
@@ -158,6 +162,7 @@ class ChatController {
 		let llmClient = new LLmProviderManager({ model: llmModelToBeUse });
 		let dialogEngine = new DialogEngine(workflowToBeUse);
 		let initialStepProperties = dialogEngine.getCurrentStepDetail();
+		console.log('state before undertandingPromt:', initialState.stateMachine?.getCurrentState());
 		let chatHistory = this.parseMsgsForLlm(sessionId);
 		initialState.chatHistory = chatHistory;
 		let undertandPromt = chatUndertanding(initialState, initialStepProperties)
@@ -170,6 +175,7 @@ class ChatController {
 
 		let structuedOutput = JSON.parse(extractedParams.output_text);
 		let updatedState = dialogEngine.excuteCurrentStep({ ...initialState, collectedData: structuedOutput.value })
+		this.saveState(sessionId, updatedState)
 
 		// this is debbuging
 		let v = initialStepProperties.type === 'COLLECT' ? initialStepProperties : null
@@ -181,7 +187,7 @@ class ChatController {
 		let updatedStepProperties = dialogEngine.getCurrentStepDetail();
 		let responsePromt = getResponsePromt(updatedState, updatedStepProperties);
 
-		console.log(responsePromt);
+
 		let responseChatHistoryBuffer: ResponseInput[] = [...chatHistory, { role: 'developer', content: responsePromt }];
 
 		let res = await llmClient.askLLm(responseChatHistoryBuffer);

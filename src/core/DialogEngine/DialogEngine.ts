@@ -199,6 +199,10 @@ class DialogEngine {
 			collectedData: state?.collectedData ? state.collectedData : undefined,
 			chatHistory: state?.chatHistory ? state.chatHistory : undefined
 		}
+		console.log('===============');
+		console.log('inside the fn: ', state?.collectedData);
+		console.log('inside the fn: ', typeof state?.collectedData);
+		console.log('===============');
 		let currentStepDetails = this.getCurrentStepDetail()
 
 		switch (currentStepDetails?.type) {

@@ -8,6 +8,7 @@ import getStepInstructions from './getStepInstructions'
 const chatUndertanding = (dialogEngineState: DialogEngineState, stepProperty: StepPropertyTypes): string => {
 	let textChatHistory = formatHistoryIntoText(dialogEngineState.chatHistory)
 	let instructions = getStepInstructions(stepProperty);
+
 	let promt = buildParsingPromt({
 		history: textChatHistory,
 		instructions: instructions,
