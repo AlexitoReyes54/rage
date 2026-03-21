@@ -162,7 +162,6 @@ class ChatController {
 		let llmClient = new LLmProviderManager({ model: llmModelToBeUse });
 		let dialogEngine = new DialogEngine(workflowToBeUse);
 		let initialStepProperties = dialogEngine.getCurrentStepDetail();
-		console.log('state before undertandingPromt:', initialState.stateMachine?.getCurrentState());
 		let chatHistory = this.parseMsgsForLlm(sessionId);
 		initialState.chatHistory = chatHistory;
 		let undertandPromt = chatUndertanding(initialState, initialStepProperties)
@@ -187,11 +186,9 @@ class ChatController {
 		let updatedStepProperties = dialogEngine.getCurrentStepDetail();
 		let responsePromt = getResponsePromt(updatedState, updatedStepProperties);
 
-
 		let responseChatHistoryBuffer: ResponseInput[] = [...chatHistory, { role: 'developer', content: responsePromt }];
 
 		let res = await llmClient.askLLm(responseChatHistoryBuffer);
-
 		let llm_msg = res.output_text;
 		return llm_msg;
 	}

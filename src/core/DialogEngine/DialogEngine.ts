@@ -81,6 +81,14 @@ class DialogEngine {
 			const currStepName = possibleTransitionList[0]?.from;
 
 			if (!currentStepDetails.nodeConditional) {
+				// TODO: the problem here is that we are curr at the node that has the link 
+				// but the conditional os on the the next node conditional section
+				//
+				// yes that is correct i need to review this condition using the node where the steps 
+				// are that this link is pointing 
+				//
+				// so dont use currentStepDetails use somthing linke next step node 
+				console.log(currentStepDetails);
 				throw new AppError('there is a link that points to 3 steps but the node it points to has no conditional for file' + this.workflowName)
 			}
 
