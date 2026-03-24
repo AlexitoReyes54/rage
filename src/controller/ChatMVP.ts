@@ -176,7 +176,7 @@ class ChatController {
 		let updatedState = dialogEngine.excuteCurrentStep({ ...initialState, collectedData: structuedOutput.value })
 		this.saveState(sessionId, updatedState)
 
-		// this is debbuging
+		// this is debbuging TODO delete this code section
 		let v = initialStepProperties.type === 'COLLECT' ? initialStepProperties : null
 		if (v) {
 			printCurrentStepName(updatedState.stateMachine);

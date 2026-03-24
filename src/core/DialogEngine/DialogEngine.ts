@@ -8,6 +8,13 @@ import { ActionsManager } from "../ActionsManager/ActionsManager";
 import type { CollectParam, DialogEngineState } from './types';
 import executeCompare from "./utils/executeCompare";
 import validateDataType from "./utils/validateDataType";
+import { object } from "zod/v3";
+
+const validateSteps = (errorMessage: string, ...steps: (string | undefined)[]): void => {
+	if (steps.some(step => step === undefined)) {
+		throw new Error(errorMessage);
+	}
+};
 
 class DialogEngine {
 	private stateMachine: StateMachine;
@@ -21,7 +28,7 @@ class DialogEngine {
 		const stepsDetailedInfo = BussinesLogicTransformer.getAllWorkflowsStepsInfo()[workflowName]
 
 		if (!workflowStateMachine || !stepsDetailedInfo) {
-			throw new AppError('error the state machine your are looking for does not exist while using dialog engine for ' + workflowName);
+			throw new AppError('error the state machine your are looking for does not exist while using dialog engine for  ' + workflowName);
 		}
 
 		this.workflowName = workflowName;
@@ -47,6 +54,8 @@ class DialogEngine {
 			conditional.operator,
 			conditional.right,
 			this.workflowName)
+		console.log('execution value is: ' + isTrue);
+		console.log('slot value is: ' + slotName);
 
 		if (isTrue === undefined) {
 			throw new AppError('error during the validation of some conditional in the file' + this.workflowName)
@@ -56,61 +65,79 @@ class DialogEngine {
 	}
 
 
+	// TODO i have to review why is that when the condition is false 
+	// is does not work, it only works when its a yes so take a look 
+	// on that
 	private makeTransition(currentStepDetails: StepPropertyTypes) {
 		let possibleTransitionList = this.stateMachine.getPossibleTransitions();
 
 		if (possibleTransitionList.length === 1 && possibleTransitionList[0]) {
+			console.log('is here one path');
 			const transitionName = possibleTransitionList[0]?.name;
-
 			this.stateMachine.transition(transitionName);
-		} else if (possibleTransitionList.length === 3) {
-
-			const nodeNames = Object.keys(this.stepsDetailedInfo.nodes);
-			const currNodeIndex = nodeNames.indexOf(currentStepDetails.nodeId);
-			const nextNodeName = nodeNames[currNodeIndex + 1];
-
-			const nextNode = this.stepsDetailedInfo.nodes[nextNodeName as string];
-			const firstStepName = nextNode?.steps?.[0];
-			const nextStepDetail = this.stepsDetailedInfo.steps[firstStepName as string];
-
-			if (!nextStepDetail?.nodeConditional) {
-				throw new AppError(`Invalid link step transition in workflow: ${this.workflowName}`);
-			}
-
-			const branch = this.isNodeConditionTrue(nextStepDetail?.nodeConditional) ? 'ifTrue' : 'ifFalse';
-			const currStepName = possibleTransitionList[0]?.from;
-
-			if (!currentStepDetails.nodeConditional) {
-				// TODO: the problem here is that we are curr at the node that has the link 
-				// but the conditional os on the the next node conditional section
-				//
-				// yes that is correct i need to review this condition using the node where the steps 
-				// are that this link is pointing 
-				//
-				// so dont use currentStepDetails use somthing linke next step node 
-				console.log(currentStepDetails);
-				throw new AppError('there is a link that points to 3 steps but the node it points to has no conditional for file' + this.workflowName)
-			}
-
-			const targetStepName = this.stepsDetailedInfo.nodes[currentStepDetails.nodeId]?.evaluation[branch][0];
-			const transition = possibleTransitionList.find(t => t.to === targetStepName);
-
-			if (!transition) {
-				throw new AppError('there is nos transiton in the step ' + currStepName + 'to ' + targetStepName)
-			}
-
-			this.stateMachine.transition(transition.name)
-		} else {
-			throw new AppError('error in the DialogEngine, unknow scenaro where link has not 1 or 3 refeences, see the doc information this was not considering while coding this feature for file' + this.workflowName)
+			return;
 		}
+
+		// si tines 3 opciones es un link by default 
+		if (possibleTransitionList.length === 3 && currentStepDetails.type === "LINK") {
+			console.log('is here 3 path');
+
+
+			const pointingNodeName = this.stepsDetailedInfo.nodes[currentStepDetails.link];
+			if (!pointingNodeName) {
+				throw new AppError('this link step is point to a non existing node ')
+			};
+
+			const normalStep = pointingNodeName.steps[0]
+			const thenStep = pointingNodeName.evaluation.ifTrue[0]
+			const elseStep = pointingNodeName.evaluation.ifFalse[0]
+			validateSteps('error some node have undefined steps, node: '
+				+ currentStepDetails.link, normalStep, thenStep, elseStep)
+
+			const nextStepDetailsa = this.stepsDetailedInfo.nodes[currentStepDetails.link];
+			if (!nextStepDetailsa) throw new AppError('link points to null node' + this.workflowName)
+
+			let firstSTep = nextStepDetailsa.steps[0]
+			if (!firstSTep) throw new AppError('first step is null for the ' + this.workflowName)
+
+			const conditionToEvaluate = this.stepsDetailedInfo.steps[firstSTep]?.nodeConditional
+
+			if (!conditionToEvaluate) {
+				throw new AppError('there is a link that points to 3 steps but the node it points to has no conditional for file ' + this.workflowName)
+			}
+
+			const goTo = this.isNodeConditionTrue(conditionToEvaluate) ? thenStep : elseStep;
+			console.log('goTo value ' + goTo);
+
+			//TODO there is a bug it seems like when the condition is false 
+			//is stops working properly and the state is not updates so it stays the 
+			//same
+			console.log('======================')
+			console.log(thenStep);
+			console.log(elseStep);
+			console.log('the goTo value is ' + goTo);
+			console.log(goTo === thenStep ? 'the conditonal was true' : 'the conditonal was false');
+
+			console.log('======================')
+
+			const transitionWhat = possibleTransitionList.find(t => t.to === goTo);
+
+			if (!transitionWhat) {
+				throw new AppError('there is no transiton avilable in the step '
+					+ possibleTransitionList[0]?.from + ' to ' + goTo + ' ' + this.workflowName)
+			}
+
+			this.stateMachine.transition(transitionWhat.name)
+			return;
+		}
+
+		throw new AppError('error in the DialogEngine, unknow scenaro where link has not 1 or 3 refeences, see the doc information this was not considering while coding this feature for file' + this.workflowName)
 	}
 
 
 	private processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState) {
 		try {
 			const userInput = dialogEngineState.collectedData;
-			console.log('collect step user input: ',userInput);
-			
 
 			if (!userInput) {
 				return false;
