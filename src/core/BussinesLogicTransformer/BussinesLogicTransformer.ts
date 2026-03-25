@@ -33,10 +33,6 @@ function isTheEnd(stepName: string) {
 
 function getAllLinkStepDestinations(stepName: string, flowStructure: StatesStructure, workflowFile: string): string[] {
 
-	if (typeof stepName !== 'string') {
-		return []
-	}
-
 	let destinations: string[] = [];
 	let linkStepDetail = StepRegistry.getAllStepsFromDoc(workflowFile)?.steps[stepName] as LinkStepProperties;
 	let nodeIsPointingAt = flowStructure[linkStepDetail.link];
@@ -107,29 +103,18 @@ function getFlowTransitions(flowStructure: StatesStructure, workflowFile: string
 				throw new AppError("error happend while trying to build state machine from bussine logic file");
 			}
 
-			// here is the problem i have to find where the link is point to not just
-			// use this, (the next item in the yaml file order)
-			// 
-			// can no use that need a smart way to point to the right step/node
-			let nextNode = nodes[nodeIndex + 1];
-
-			if (!nextNode && nodes.length - 1 !== nodeIndex) {
-				throw new AppError("there is an error pointing to the next node and state machine building");
-			}
-
 			let { conditional, steps } = nodeInfo;
 
 			if (!steps[0]) {
 				throw new AppError("something went wrong with the steps parsing from the bussines logic file steps");
 			}
 
-			if (conditional.then && nextNode) {
-
-				linkStep(conditional.then, steps[0], flowStructure)
+			if (conditional.then) {
+				linkStep(conditional.then, steps[0] )
 			}
 
-			if (conditional.else && nextNode) {
-				linkStep(conditional.else, steps[0], flowStructure)
+			if (conditional.else) {
+				linkStep(conditional.else, steps[0])
 			}
 
 			for (let i = 0; i < steps.length; i++) {
@@ -140,7 +125,7 @@ function getFlowTransitions(flowStructure: StatesStructure, workflowFile: string
 				if (!currentStep || (!nextStep && steps.length - 1 !== i)) {
 					throw new AppError('error happended while reading steps and turning them into state machine transitions')
 				}
-				if (isThisAPointer(currentStep) && nextNode) {
+				if (isThisAPointer(currentStep)) {
 					const destinations = getAllLinkStepDestinations(currentStep, flowStructure, workflowFile);
 					destinations.forEach(destination => transitions.push({
 						from: currentStep,
