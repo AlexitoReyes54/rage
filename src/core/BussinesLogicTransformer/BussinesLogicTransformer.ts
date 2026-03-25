@@ -1,15 +1,17 @@
 import BussinesLogicParser from "../BussinesLogicParser/BussinesLogicParser";
 import type { Transition } from "../StateMachine/types";
-import { type Workflow, type StepType } from "../BussinesLogicParser/types";
+import { type Workflow, type StepType, type LinkStepType } from "../BussinesLogicParser/types";
 import type { StepRegistryRecord, StatesStructure, NodeStuctureForStateMachine, StepPropertyTypes, ConditionalSections, NodeBlocks } from "./types";
 import AppError from "../Errors/AppError";
 import StateMachine from "../StateMachine/StateMachine";
 import type { SlotsObject } from "../StateMachine/types";
-
+import type { LinkStepProperties } from "./types";
 
 import { parseCondition } from "../BussinesLogicParser/utils/parseCondition";
 import visualizeWorkflow from "../StateMachine/utils/visualizeWorkflow";
 
+// TODO refine this by using the StepRegistry to check the type of the 
+// step using meta data and not strings
 function isThisAPointer(stateName: string) {
 	if (stateName.includes("END")) {
 		return false;
@@ -29,14 +31,20 @@ function isTheEnd(stepName: string) {
 	return false;
 }
 
-// TODO the bug is here, the steps in the conditional block are
-// always pointing to the same node/step
-function getAllLinkStepDestinations(nextNode: NodeStuctureForStateMachine): string[] {
-	let destinations: string[] = [];
+function getAllLinkStepDestinations(stepName: string, flowStructure: StatesStructure, workflowFile: string): string[] {
 
-	let thenSteps = nextNode.conditional.then;
-	let elseSteps = nextNode.conditional.else;
-	let commonSteps = nextNode.steps;
+	if (typeof stepName !== 'string') {
+		return []
+	}
+
+	let destinations: string[] = [];
+	let linkStepDetail = StepRegistry.getAllStepsFromDoc(workflowFile)?.steps[stepName] as LinkStepProperties;
+	let nodeIsPointingAt = flowStructure[linkStepDetail.link];
+	if (!nodeIsPointingAt) throw new AppError('a link step is pointing to a non existing node');
+
+	let thenSteps = nodeIsPointingAt.conditional.then;
+	let elseSteps = nodeIsPointingAt.conditional.else;
+	let commonSteps = nodeIsPointingAt.steps;
 
 	if (thenSteps.length > 0 && thenSteps[0]) {
 		destinations.push(thenSteps[0])
@@ -50,7 +58,6 @@ function getAllLinkStepDestinations(nextNode: NodeStuctureForStateMachine): stri
 		destinations.push(commonSteps[0])
 	}
 
-	console.log('destinations', destinations);
 	return destinations;
 }
 
@@ -59,30 +66,18 @@ const getStepItLinks = (linkStep: string) => linkStep.split('_LINK_')[1];
 
 const generateTransitionName = (from: string, to: string) => `from_${from}_to_${to}`;
 
-function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
+function getFlowTransitions(flowStructure: StatesStructure, workflowFile: string): Transition[] {
 	try {
 		const emptyEvent = () => null;
 		let transitions: Transition[] = [];
 		const nodes = Object.keys(flowStructure);
-		const linkStep = (currentStepsSet: string[], firstStepFromNextSet: string, nextNode: NodeStuctureForStateMachine) => {
+		const linkStep = (currentStepsSet: string[], firstStepFromNextSet: string) => {
 			currentStepsSet.forEach((step, i) => {
 				const nextStep = currentStepsSet[i + 1] || firstStepFromNextSet;
 				const destinations: string[] | undefined = [];
 
 				if (isThisAPointer(step)) {
-					// if there is an error with the links pointers 
-					// take a look here
-					console.log('curr step',step);
-					
-					
-					// TODO start working here 
-					// what is this nextNode ????
-					// it seems that the next node is just the next 
-					// node in the order of the yaml file
-					//
-					// so it will always point to the wrong step when 
-					// links are dynamic
-					getAllLinkStepDestinations(nextNode)
+					getAllLinkStepDestinations(step, flowStructure, workflowFile)
 						.forEach(item => destinations.push(item))
 				} else {
 					destinations.push(nextStep);
@@ -130,22 +125,23 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 
 			if (conditional.then && nextNode) {
 
-				linkStep(conditional.then, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
+				linkStep(conditional.then, steps[0], flowStructure)
 			}
 
 			if (conditional.else && nextNode) {
-				linkStep(conditional.else, steps[0], flowStructure[nextNode] as NodeStuctureForStateMachine)
+				linkStep(conditional.else, steps[0], flowStructure)
 			}
 
 			for (let i = 0; i < steps.length; i++) {
 				const currentStep = steps[i];
 				const nextStep = steps[i + 1];
 
+
 				if (!currentStep || (!nextStep && steps.length - 1 !== i)) {
 					throw new AppError('error happended while reading steps and turning them into state machine transitions')
 				}
 				if (isThisAPointer(currentStep) && nextNode) {
-					const destinations = getAllLinkStepDestinations(flowStructure[nextNode] as NodeStuctureForStateMachine);
+					const destinations = getAllLinkStepDestinations(currentStep, flowStructure, workflowFile);
 					destinations.forEach(destination => transitions.push({
 						from: currentStep,
 						to: destination,
@@ -420,7 +416,7 @@ class BussinesLogicTransformer {
 
 			})
 
-			let transitions = getFlowTransitions(workflowStepsRepresentation)
+			let transitions = getFlowTransitions(workflowStepsRepresentation, fileName)
 			//console.log(transitions);
 			let firstState = states[0];
 
