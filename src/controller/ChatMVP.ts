@@ -41,14 +41,12 @@ function getResSructure(slotType: SlotTypes) {
 	let valueType;
 	switch (slotType) {
 		case 'string':
-			console.log('string struc');
 			valueType = z.string().nullable().describe('');
 			break;
 		case "number":
 			valueType = z.number().nullable().describe('');
 			break;
 		case "boolean":
-			console.log('bool struc');
 			valueType = z.boolean().nullable().describe('');
 			break;
 		default:
@@ -179,7 +177,7 @@ class ChatController {
 		// this is debbuging TODO delete this code section
 		let v = initialStepProperties.type === 'COLLECT' ? initialStepProperties : null
 		if (v) {
-			printCurrentStepName(updatedState.stateMachine);
+			//printCurrentStepName(updatedState.stateMachine);
 		}
 
 		// responding 

@@ -14,7 +14,9 @@ export default async function loadAllYmlFiles() {
 		if (currentFileContent === undefined) {
 			console.log(fileName);
 		}
-		BussinesLogicTransformer.loadYamlIntoMemory(fileName, currentFileContent);
+		if (fileName === 'medical') {
+			BussinesLogicTransformer.loadYamlIntoMemory(fileName, currentFileContent);
+		}
 	})).catch(e => {
 		console.log(e);
 		throw new AppError('error loading the flow files')

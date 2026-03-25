@@ -29,6 +29,8 @@ function isTheEnd(stepName: string) {
 	return false;
 }
 
+// TODO the bug is here, the steps in the conditional block are
+// always pointing to the same node/step
 function getAllLinkStepDestinations(nextNode: NodeStuctureForStateMachine): string[] {
 	let destinations: string[] = [];
 
@@ -48,6 +50,7 @@ function getAllLinkStepDestinations(nextNode: NodeStuctureForStateMachine): stri
 		destinations.push(commonSteps[0])
 	}
 
+	console.log('destinations', destinations);
 	return destinations;
 }
 
@@ -69,6 +72,16 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 				if (isThisAPointer(step)) {
 					// if there is an error with the links pointers 
 					// take a look here
+					console.log('curr step',step);
+					
+					
+					// TODO start working here 
+					// what is this nextNode ????
+					// it seems that the next node is just the next 
+					// node in the order of the yaml file
+					//
+					// so it will always point to the wrong step when 
+					// links are dynamic
 					getAllLinkStepDestinations(nextNode)
 						.forEach(item => destinations.push(item))
 				} else {
@@ -99,6 +112,10 @@ function getFlowTransitions(flowStructure: StatesStructure): Transition[] {
 				throw new AppError("error happend while trying to build state machine from bussine logic file");
 			}
 
+			// here is the problem i have to find where the link is point to not just
+			// use this, (the next item in the yaml file order)
+			// 
+			// can no use that need a smart way to point to the right step/node
 			let nextNode = nodes[nodeIndex + 1];
 
 			if (!nextNode && nodes.length - 1 !== nodeIndex) {
@@ -174,7 +191,7 @@ function formatStepName(step: StepType) {
 	}
 }
 
-function generateStepName(
+function _generateStepName(
 	id: string,
 	step: StepType,
 	conditional?: ConditionalSections) {
@@ -183,11 +200,33 @@ function generateStepName(
 		'_if_then_' :
 		'_if_else_';
 
+	const CONDITIONAL_MAP = {
+		then: '_if_then_',
+		else: '_if_else_'
+	};
+
 	let inter = conditional ?
 		condition_inter :
 		"_";
 
 	return `${id}${inter}${formatStepName(step)}`
+}
+
+
+//this fn seems to be working fine
+function generateStepName(
+	id: string,
+	step: StepType,
+	conditional?: ConditionalSections
+) {
+	const MAP: Record<string, string> = {
+		then: '_if_then_',
+		else: '_if_else_'
+	};
+
+	const inter = conditional ? MAP[conditional] : "_";
+
+	return `${id}${inter}${formatStepName(step)}`;
 }
 
 
@@ -218,9 +257,11 @@ function getStepTypeProperties(step: StepType, nodeId: string, nodeDescription: 
 
 
 class StepRegistry {
+	// here is good for some reason
 	private static storage: Record<string, StepRegistryRecord> = {};
 
 	/// refactor here the way the steps are stored 
+	// TODO it smells bad here sort of for tthe naem bug
 	static saveSingleStep(fileName: string, stepName: string, data: StepPropertyTypes) {
 		if (!this.storage[fileName]) {
 			this.storage[fileName] = {
@@ -310,6 +351,7 @@ class BussinesLogicTransformer {
 		this.transformIntoStateMachine(workflowFile, yamlFileName, workflowSlots)
 	}
 
+
 	static transformIntoNodeInfoMap(workflow: Workflow, fileName: string) {
 
 		workflow.process.forEach(node => {
@@ -365,7 +407,7 @@ class BussinesLogicTransformer {
 				})
 
 				item.if?.else.forEach(step => {
-					let stepName = generateStepName(item.id, step)
+					let stepName = generateStepName(item.id, step, 'else')
 					states.push(stepName);
 					workflowStepsRepresentation[item.id]?.conditional.else.push(stepName);
 				})
@@ -379,6 +421,7 @@ class BussinesLogicTransformer {
 			})
 
 			let transitions = getFlowTransitions(workflowStepsRepresentation)
+			//console.log(transitions);
 			let firstState = states[0];
 
 			let machine = new StateMachine(firstState, states, transitions, workflowSlots)

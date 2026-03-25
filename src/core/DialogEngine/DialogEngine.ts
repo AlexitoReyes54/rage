@@ -37,6 +37,7 @@ class DialogEngine {
 	}
 
 	private isNodeConditionTrue(conditional: Condition): boolean {
+		console.log(conditional);
 		const slotName = conditional.left;
 
 		if (!slotName) {
@@ -45,8 +46,8 @@ class DialogEngine {
 
 		const slotValue = this.stateMachine.getSlotValue(slotName)
 
-		if (!slotValue) {
-			throw new AppError('there is a conditional referencing to a non existing slot')
+		if (slotValue === undefined) {
+			throw new AppError('the slot value does not exits in the state machine')
 		}
 
 		let isTrue = executeCompare(
@@ -68,19 +69,22 @@ class DialogEngine {
 	// TODO i have to review why is that when the condition is false 
 	// is does not work, it only works when its a yes so take a look 
 	// on that
+	// also remove all the debbuging logs in this fn
 	private makeTransition(currentStepDetails: StepPropertyTypes) {
 		let possibleTransitionList = this.stateMachine.getPossibleTransitions();
 
 		if (possibleTransitionList.length === 1 && possibleTransitionList[0]) {
-			console.log('is here one path');
 			const transitionName = possibleTransitionList[0]?.name;
+			console.log('is here 1 path', currentStepDetails);
+			console.log(possibleTransitionList);
+			console.log('is here one path', transitionName);
 			this.stateMachine.transition(transitionName);
 			return;
 		}
 
 		// si tines 3 opciones es un link by default 
 		if (possibleTransitionList.length === 3 && currentStepDetails.type === "LINK") {
-			console.log('is here 3 path');
+			console.log('is here 3 path', currentStepDetails);
 
 
 			const pointingNodeName = this.stepsDetailedInfo.nodes[currentStepDetails.link];
@@ -110,19 +114,18 @@ class DialogEngine {
 			console.log('goTo value ' + goTo);
 
 			//TODO there is a bug it seems like when the condition is false 
-			//is stops working properly and the state is not updates so it stays the 
-			//same
 			console.log('======================')
-			console.log(thenStep);
-			console.log(elseStep);
 			console.log('the goTo value is ' + goTo);
 			console.log(goTo === thenStep ? 'the conditonal was true' : 'the conditonal was false');
-
 			console.log('======================')
+			console.log(possibleTransitionList);
+			
 
 			const transitionWhat = possibleTransitionList.find(t => t.to === goTo);
 
 			if (!transitionWhat) {
+				console.log('possibleTransitionList');
+				console.log(possibleTransitionList);
 				throw new AppError('there is no transiton avilable in the step '
 					+ possibleTransitionList[0]?.from + ' to ' + goTo + ' ' + this.workflowName)
 			}
@@ -139,7 +142,7 @@ class DialogEngine {
 		try {
 			const userInput = dialogEngineState.collectedData;
 
-			if (!userInput) {
+			if (userInput === undefined) {
 				return false;
 			}
 
@@ -195,6 +198,7 @@ class DialogEngine {
 
 		//console.log(dialogEngineState);
 		if (!isComplete) {
+			console.log('does nothing');
 			// send instructionsForLlm for the same step
 			return dialogEngineState;
 		}
@@ -231,13 +235,10 @@ class DialogEngine {
 			stepsDetailedInfo: state?.stepsDetailedInfo ? state.stepsDetailedInfo : this.stepsDetailedInfo,
 			instructionsForLlm: state?.instructionsForLlm ? state.instructionsForLlm : {},
 			timesOnThisStep: state?.instructionsForLlm ? state.timesOnThisStep : 0,
-			collectedData: state?.collectedData ? state.collectedData : undefined,
+			collectedData: state?.collectedData !== undefined ? state.collectedData : undefined,
 			chatHistory: state?.chatHistory ? state.chatHistory : undefined
 		}
-		console.log('===============');
-		console.log('inside the fn: ', state?.collectedData);
-		console.log('inside the fn: ', typeof state?.collectedData);
-		console.log('===============');
+
 		let currentStepDetails = this.getCurrentStepDetail()
 
 		switch (currentStepDetails?.type) {
