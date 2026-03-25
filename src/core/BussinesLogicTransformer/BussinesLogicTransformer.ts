@@ -402,7 +402,6 @@ class BussinesLogicTransformer {
 			})
 
 			let transitions = getFlowTransitions(workflowStepsRepresentation, fileName)
-			//console.log(transitions);
 			let firstState = states[0];
 
 			let machine = new StateMachine(firstState, states, transitions, workflowSlots)

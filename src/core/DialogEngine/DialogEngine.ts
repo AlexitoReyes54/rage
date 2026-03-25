@@ -8,7 +8,6 @@ import { ActionsManager } from "../ActionsManager/ActionsManager";
 import type { CollectParam, DialogEngineState } from './types';
 import executeCompare from "./utils/executeCompare";
 import validateDataType from "./utils/validateDataType";
-import { object } from "zod/v3";
 
 const validateSteps = (errorMessage: string, ...steps: (string | undefined)[]): void => {
 	if (steps.some(step => step === undefined)) {
@@ -20,6 +19,7 @@ class DialogEngine {
 	private stateMachine: StateMachine;
 	private stepsDetailedInfo: StepRegistryRecord;
 	private workflowName: string;
+	private dialogEngineState: DialogEngineState;
 
 	constructor(workflowName: string, stateMachine?: StateMachine) {
 		const workflowStateMachine = stateMachine ?? BussinesLogicTransformer
@@ -34,10 +34,14 @@ class DialogEngine {
 		this.workflowName = workflowName;
 		this.stepsDetailedInfo = stepsDetailedInfo;
 		this.stateMachine = workflowStateMachine;
+		this.dialogEngineState = {
+			stateMachine: this.stateMachine,
+			stepsDetailedInfo: this.stepsDetailedInfo,
+		};
+
 	}
 
 	private isNodeConditionTrue(conditional: Condition): boolean {
-		console.log(conditional);
 		const slotName = conditional.left;
 
 		if (!slotName) {
@@ -55,8 +59,6 @@ class DialogEngine {
 			conditional.operator,
 			conditional.right,
 			this.workflowName)
-		console.log('execution value is: ' + isTrue);
-		console.log('slot value is: ' + slotName);
 
 		if (isTrue === undefined) {
 			throw new AppError('error during the validation of some conditional in the file' + this.workflowName)
@@ -66,27 +68,23 @@ class DialogEngine {
 	}
 
 
-	// TODO i have to review why is that when the condition is false 
-	// is does not work, it only works when its a yes so take a look 
-	// on that
-	// also remove all the debbuging logs in this fn
 	private makeTransition(currentStepDetails: StepPropertyTypes) {
 		let possibleTransitionList = this.stateMachine.getPossibleTransitions();
 
+		// TODO implement the end of the workflow
+		if (possibleTransitionList.length === 0) {
+			// this means is the end, just end the flow do nothing
+			return;
+
+		}
+
 		if (possibleTransitionList.length === 1 && possibleTransitionList[0]) {
 			const transitionName = possibleTransitionList[0]?.name;
-			console.log('is here 1 path', currentStepDetails);
-			console.log(possibleTransitionList);
-			console.log('is here one path', transitionName);
 			this.stateMachine.transition(transitionName);
 			return;
 		}
 
-		// si tines 3 opciones es un link by default 
 		if (possibleTransitionList.length === 3 && currentStepDetails.type === "LINK") {
-			console.log('is here 3 path', currentStepDetails);
-
-
 			const pointingNodeName = this.stepsDetailedInfo.nodes[currentStepDetails.link];
 			if (!pointingNodeName) {
 				throw new AppError('this link step is point to a non existing node ')
@@ -111,26 +109,14 @@ class DialogEngine {
 			}
 
 			const goTo = this.isNodeConditionTrue(conditionToEvaluate) ? thenStep : elseStep;
-			console.log('goTo value ' + goTo);
+			const transition = possibleTransitionList.find(t => t.to === goTo);
 
-			//TODO there is a bug it seems like when the condition is false 
-			console.log('======================')
-			console.log('the goTo value is ' + goTo);
-			console.log(goTo === thenStep ? 'the conditonal was true' : 'the conditonal was false');
-			console.log('======================')
-			console.log(possibleTransitionList);
-			
-
-			const transitionWhat = possibleTransitionList.find(t => t.to === goTo);
-
-			if (!transitionWhat) {
-				console.log('possibleTransitionList');
-				console.log(possibleTransitionList);
+			if (!transition) {
 				throw new AppError('there is no transiton avilable in the step '
 					+ possibleTransitionList[0]?.from + ' to ' + goTo + ' ' + this.workflowName)
 			}
 
-			this.stateMachine.transition(transitionWhat.name)
+			this.stateMachine.transition(transition.name)
 			return;
 		}
 
@@ -138,9 +124,9 @@ class DialogEngine {
 	}
 
 
-	private processStepCollect(currentStepDetails: CollectStepProperties, dialogEngineState: DialogEngineState) {
+	private processStepCollect(currentStepDetails: CollectStepProperties) {
 		try {
-			const userInput = dialogEngineState.collectedData;
+			const userInput = this.dialogEngineState.collectedData;
 
 			if (userInput === undefined) {
 				return false;
@@ -162,7 +148,7 @@ class DialogEngine {
 	// TODO implement some type of retry system if the action fails
 	// TODO update this one to respond with the action respoonde msg so the llm has better info to response 
 	// to the user 
-	private processStepAction(actionStepDetail: ActionStepProperties, dialogEngineState: DialogEngineState): boolean {
+	private processStepAction(actionStepDetail: ActionStepProperties): boolean {
 		let propValues: AllowedSlotValues[] = []
 		const actionsManager = new ActionsManager();
 
@@ -170,9 +156,11 @@ class DialogEngine {
 			throw new AppError('there are not param values defined insede action step ' + actionStepDetail.actionName)
 		}
 
+		console.log('actions param: ', actionStepDetail.actionParams);
+
 		actionStepDetail.actionParams.forEach(param => {
 			let paramValue = this.stateMachine.getSlotValue(param);
-			if (!paramValue) {
+			if (paramValue === undefined) {
 				throw new AppError('error this prop was not collected during the workflow ' + param + ' file ' + this.workflowName + ' in the action ' + actionStepDetail.actionName)
 			}
 			propValues.push(paramValue)
@@ -180,27 +168,38 @@ class DialogEngine {
 
 		const response = actionsManager.executeSingleAction(actionStepDetail.actionName, propValues)
 
-		if (!dialogEngineState.instructionsForLlm) {
-			dialogEngineState.instructionsForLlm = {};
+		if (!this.dialogEngineState.instructionsForLlm) {
+			this.dialogEngineState.instructionsForLlm = {};
 		}
 
 		if (response.isComplete) {
-			dialogEngineState.instructionsForLlm.textInstructions = response.successMsg;
+			this.dialogEngineState.instructionsForLlm.textInstructions = response.successMsg;
 			return true;
 		}
 
-		dialogEngineState.instructionsForLlm.textInstructions = response.failureMsg;
+		this.dialogEngineState.instructionsForLlm.textInstructions = response.failureMsg;
 		return false;
 	}
 
-	private executeStepWorkflow(dialogEngineState: DialogEngineState, processFn: () => boolean) {
+	private executeStepWorkflow(processFn: () => boolean) {
+
+		console.log('---------------');
+		let currentStepName = this.stateMachine.getCurrentState();
+		console.log('currrent step calling execute:', currentStepName);
+		console.log('---------------');
+		const nextStep = this.getCurrentStepDetail();
+		// this can never happend bc i can never set 
+		// in a step of type LINK, plus if i set this before the actions or whatever it does it wont send the currrent sttep result information
+		if (nextStep?.type === 'LINK' && nextStep.link === 'END') {
+			this.dialogEngineState.isFlowComplete = true;
+			return this.dialogEngineState;
+		}
+
 		const isComplete = processFn();
 
-		//console.log(dialogEngineState);
 		if (!isComplete) {
-			console.log('does nothing');
 			// send instructionsForLlm for the same step
-			return dialogEngineState;
+			return this.dialogEngineState;
 		}
 
 		this.makeTransition(this.getCurrentStepDetail());
@@ -209,10 +208,12 @@ class DialogEngine {
 			this.moveThroughLinkSteps();
 		}
 
+
+		// i dont think this is necessary
 		const stepAfterLinks = this.getCurrentStepDetail()
 		// send instructionsForLlm for stepAfterLinks
 		//	dialogEngineState.timesOnThisStep++;
-		return dialogEngineState;
+		return this.dialogEngineState;
 	}
 
 	getCurrentStepDetail() {
@@ -229,14 +230,15 @@ class DialogEngine {
 	// error that happends inside this functino has to be habdled with grace 
 	// be super carefull with them
 	excuteCurrentStep(state?: DialogEngineState): DialogEngineState {
-		// this could be a global varible, why not ??/
-		let dialogEngineState: DialogEngineState = {
+
+		this.dialogEngineState = {
 			stateMachine: state?.stateMachine ? state.stateMachine : this.stateMachine,
-			stepsDetailedInfo: state?.stepsDetailedInfo ? state.stepsDetailedInfo : this.stepsDetailedInfo,
-			instructionsForLlm: state?.instructionsForLlm ? state.instructionsForLlm : {},
-			timesOnThisStep: state?.instructionsForLlm ? state.timesOnThisStep : 0,
-			collectedData: state?.collectedData !== undefined ? state.collectedData : undefined,
-			chatHistory: state?.chatHistory ? state.chatHistory : undefined
+			stepsDetailedInfo: state?.stepsDetailedInfo ? state.stepsDetailedInfo : this.dialogEngineState.stepsDetailedInfo,
+			instructionsForLlm: state?.instructionsForLlm ? state.instructionsForLlm : this.dialogEngineState.instructionsForLlm,
+			timesOnThisStep: state?.instructionsForLlm ? state.timesOnThisStep : this.dialogEngineState.timesOnThisStep,
+			collectedData: state?.collectedData !== undefined ? state.collectedData : this.dialogEngineState.collectedData,
+			chatHistory: state?.chatHistory ? state.chatHistory : this.dialogEngineState.chatHistory,
+			isFlowComplete: state?.isFlowComplete !== undefined ? state?.isFlowComplete : this.dialogEngineState.isFlowComplete,
 		}
 
 		let currentStepDetails = this.getCurrentStepDetail()
@@ -244,25 +246,19 @@ class DialogEngine {
 		switch (currentStepDetails?.type) {
 			case 'COLLECT':
 				return this.executeStepWorkflow(
-					dialogEngineState,
-					() => this.processStepCollect(currentStepDetails, dialogEngineState)
+					() => this.processStepCollect(currentStepDetails)
 				);
 			case 'ACTION':
 				return this.executeStepWorkflow(
-					dialogEngineState,
-					() => this.processStepAction(currentStepDetails, dialogEngineState)
+					() => this.processStepAction(currentStepDetails)
 				);
 			case 'LINK':
+			case 'NEXT':
+			default:
 				// this should never happend the code should never get here
 				break;
-			case 'NEXT':
-				// dont implement it next step type is not going to 
-				// be used anymore 
-				break
-			default:
-				break;
 		}
-		return dialogEngineState;
+		return this.dialogEngineState;
 	}
 
 	private moveThroughLinkSteps() {
@@ -272,7 +268,10 @@ class DialogEngine {
 		while (isLinkStep) {
 			this.makeTransition(currentStepDetails)
 			const nextStep = this.getCurrentStepDetail();
-			isLinkStep = nextStep?.type === 'LINK'
+			isLinkStep = nextStep?.type === 'LINK' && nextStep.link !== 'END'
+			if (nextStep?.type === 'LINK' && nextStep.link === 'END') {
+				this.dialogEngineState.isFlowComplete = true;
+			}
 		}
 	}
 

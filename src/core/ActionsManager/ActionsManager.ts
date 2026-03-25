@@ -28,6 +28,8 @@ export class ActionsManager {
 		action.expectedProps.forEach((expectedProp, index) => {
 			propObj[expectedProp] = actionProps[index]
 		})
+		console.log('propObj:', propObj);
+		
 
 		return action.function(propObj);
 	}

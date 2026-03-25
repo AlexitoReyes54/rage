@@ -22,5 +22,6 @@ export interface DialogEngineState {
 	timesOnThisStep?: number;
 	collectedData?: string | boolean | number;
 	chatHistory?: ResponseInput[];
+	isFlowComplete?:boolean;
 }
 

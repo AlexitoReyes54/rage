@@ -1,6 +1,7 @@
 import type { StepPropertyTypes } from '../../core/BussinesLogicTransformer/types'
 
 // TODO this requires a complete implementation implementation
+// for the actions instructions
 export default function getStepInstructions(stepProperty: StepPropertyTypes) {
 	switch (stepProperty.type) {
 		case 'ACTION':

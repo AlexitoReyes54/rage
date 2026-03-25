@@ -100,6 +100,10 @@ class ChatController {
 		this.dialogEngineStateStorage.set(sessionId, state)
 	}
 
+	private deleteState(sessionId: SessionId) {
+		this.dialogEngineStateStorage.delete(sessionId)
+	}
+
 	constructor() {
 		this.dialogEngineStateStorage = new Map();
 		this.dbClient = PersistanceChatClient.get_instance();
@@ -157,6 +161,18 @@ class ChatController {
 		const llmModelToBeUse = 'gpt-4o-2024-08-06';
 
 		let initialState: DialogEngineState = this.getOrCreateState(sessionId)
+
+		let alt = initialState;
+		delete alt.stateMachine;
+		delete alt.chatHistory;
+		delete alt.stepsDetailedInfo;
+		console.log(alt);
+		
+		if (initialState.isFlowComplete) {
+			this.deleteState(sessionId)
+			return 'flujo completo gracias por ayudarme,te debo un chocolate'
+		}
+
 		let llmClient = new LLmProviderManager({ model: llmModelToBeUse });
 		let dialogEngine = new DialogEngine(workflowToBeUse);
 		let initialStepProperties = dialogEngine.getCurrentStepDetail();
