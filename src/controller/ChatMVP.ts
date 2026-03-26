@@ -116,7 +116,8 @@ class ChatController {
 
 			// TODO when i delete the sessionId in the useDialogEngine 
 			// i have to handdle that becaus then im just sendding undefined
-			const dialogEngine = await this.useDialogEngine(sessionId);
+			const dialogEngine = sessionId;
+			//await this.useDialogEngine(sessionId);
 			let aiResponse = dialogEngine;
 
 			this.dbClient.save_msg(sessionId, aiResponse, 0); // 0 = IA
