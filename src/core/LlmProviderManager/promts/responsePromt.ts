@@ -32,11 +32,12 @@ Your one and only responsibility is to respond information based on the 'convers
 {{history}}
 </conversation_history>
 
-## Data Expected to Extract
+## Instructions on what to respond
 <instructions>
 {{instructions}}
 </instructions>
 
 # Verbosity
-Be concise and return only the response`;
+Be concise and return only the response, you can only talk about things related to the 'instructions' section
+`;
 

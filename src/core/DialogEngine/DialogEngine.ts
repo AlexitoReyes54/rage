@@ -41,6 +41,10 @@ class DialogEngine {
 
 	}
 
+	getCurrentDialogState(){
+		return this.dialogEngineState;
+	}
+
 	private isNodeConditionTrue(conditional: Condition): boolean {
 		const slotName = conditional.left;
 

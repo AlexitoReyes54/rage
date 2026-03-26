@@ -16,26 +16,21 @@ import type { DialogEngineState } from "./../core/DialogEngine/types";
 import type StateMachine from "../../src/core/StateMachine/StateMachine";
 import { undertandingPromt } from './src/core/LlmProviderManager/promts/undertandingPromt'
 import { responsePromt } from './src/core/LlmProviderManager/promts/responsePromt'
-import type { StepPropertyTypes } from "./src/core/BussinesLogicTransformer/types";
 import { SlotTypes } from "../core/BussinesLogicParser/types";
+import type { ActionStepProperties, StepPropertyTypes } from "../core/BussinesLogicTransformer/types";
 
-const printCurrentStepName = (machine: StateMachine) => {
-	let s = machine.getCurrentState();
-	let slots = machine.getAllSlots();
-
-	console.log("-=============================-");
-	console.log('current step name: ' + s);
-	console.log('SLOTS:');
-	for (const [key, value] of slots) {
-		console.log('     current ' + key + ' value is: ' + value);
-	}
-	console.log("-=============================-");
-}
-
-
-const ChatResponseStructure = z.object({
-	value: z.string().nullable().describe('how to add zod descriptions to the object values'),
-});
+export const createChatBuffer = (
+	chatHistory: ResponseInput[],
+	content: string
+): ResponseInput[] => {
+	return [
+		...chatHistory,
+		{
+			role: 'developer',
+			content: content,
+		},
+	];
+};
 
 function getResSructure(slotType: SlotTypes) {
 	let valueType;
@@ -90,7 +85,7 @@ class ChatController {
 			state = { chatHistory } as DialogEngineState; // O new DialogEngineState() si es clase
 			this.dialogEngineStateStorage.set(sessionId, state);
 		} else {
-			console.log('already exists', sessionId);
+			//console.log('already exists', sessionId);
 		}
 
 		return state;
@@ -119,7 +114,8 @@ class ChatController {
 			// history in the dialog engine i need all the messages
 			this.dbClient.save_msg(sessionId, clientMsg.text, 1); // 1 = humano
 
-			// TODO implement dialog engine
+			// TODO when i delete the sessionId in the useDialogEngine 
+			// i have to handdle that becaus then im just sendding undefined
 			const dialogEngine = await this.useDialogEngine(sessionId);
 			let aiResponse = dialogEngine;
 
@@ -162,49 +158,93 @@ class ChatController {
 
 		let initialState: DialogEngineState = this.getOrCreateState(sessionId)
 
-		let alt = initialState;
-		delete alt.stateMachine;
-		delete alt.chatHistory;
-		delete alt.stepsDetailedInfo;
-		console.log(alt);
-		
-		if (initialState.isFlowComplete) {
-			this.deleteState(sessionId)
-			return 'flujo completo gracias por ayudarme,te debo un chocolate'
-		}
-
+		// Setup process
 		let llmClient = new LLmProviderManager({ model: llmModelToBeUse });
 		let dialogEngine = new DialogEngine(workflowToBeUse);
-		let initialStepProperties = dialogEngine.getCurrentStepDetail();
+		let initialStepProperties = dialogEngine.getCurrentStepDetail(); // step when i start the proces
 		let chatHistory = this.parseMsgsForLlm(sessionId);
 		initialState.chatHistory = chatHistory;
-		let undertandPromt = chatUndertanding(initialState, initialStepProperties)
+		let updatedState: DialogEngineState | undefined;
+		let llm_response: string = "";
 
-		let undertandChatHistoryBuffer: ResponseInput[] = [...chatHistory, { role: 'developer', content: undertandPromt }];
+		// Understanding process
+		switch (initialStepProperties.type) {
+			case "COLLECT":
+				// TODO merge responsePromt and undertandingPromt into one util(fn)
+				const collectPromt = chatUndertanding(initialState, initialStepProperties)
 
-		// ChatResponseStructure has to have a dinamyc type for the collected value from the chat
-		let slotStuctureType = initialStepProperties.type === 'COLLECT' ? getResSructure(initialStepProperties.slotType) : ChatResponseStructure;
-		let extractedParams = await llmClient.askLLm(undertandChatHistoryBuffer, slotStuctureType);
+				const extractedParam = await llmClient.askLLm(
+					createChatBuffer(chatHistory, collectPromt),
+					getResSructure(initialStepProperties.slotType)
+				);
 
-		let structuedOutput = JSON.parse(extractedParams.output_text);
-		let updatedState = dialogEngine.excuteCurrentStep({ ...initialState, collectedData: structuedOutput.value })
-		this.saveState(sessionId, updatedState)
+				const { value } = JSON.parse(extractedParam.output_text);
+				updatedState = dialogEngine.excuteCurrentStep({ ...initialState, collectedData: value })
 
-		// this is debbuging TODO delete this code section
-		let v = initialStepProperties.type === 'COLLECT' ? initialStepProperties : null
-		if (v) {
-			//printCurrentStepName(updatedState.stateMachine);
+				this.saveState(sessionId, updatedState)
+				break;
+			case "ACTION":
+				/// to be reviewed what happends here...
+				//
+				//if there are not instructions for the llm in the state then 
+				//execute the actiont whateveer is here
+				//
+				//for now i dont have 2 actions consecutive, do dont worry but that is a big issue
+				break;
+			case "LINK":
+			case "NEXT":
+			default:
+				// can not happend
+				// TODO trow an error here i guess then 
+				break;
 		}
 
-		// responding 
-		let updatedStepProperties = dialogEngine.getCurrentStepDetail();
-		let responsePromt = getResponsePromt(updatedState, updatedStepProperties);
+		// TODO impliment error handling here for possible error here
+		if (!updatedState) return // this is an error
 
-		let responseChatHistoryBuffer: ResponseInput[] = [...chatHistory, { role: 'developer', content: responsePromt }];
+		// Responding process
+		const updatedStepProperties = dialogEngine.getCurrentStepDetail();
 
-		let res = await llmClient.askLLm(responseChatHistoryBuffer);
-		let llm_msg = res.output_text;
-		return llm_msg;
+		async function getLLMResponseForStep(
+			chatHistory: ResponseInput[],
+			dialogState: DialogEngineState,
+			stepProperties: StepPropertyTypes
+		) {
+			const { output_text } = await llmClient
+				.askLLm(createChatBuffer(
+					chatHistory,
+					getResponsePromt(dialogState, stepProperties)
+				));
+			return output_text;
+		}
+
+		switch (updatedStepProperties.type) {
+			case "COLLECT":
+				const res = await getLLMResponseForStep(
+					chatHistory,
+					updatedState,
+					updatedStepProperties)
+				llm_response = res;
+				break;
+			case "ACTION":
+				const stateAfterExecuteAction = dialogEngine.excuteCurrentStep(updatedState)
+				llm_response = await getLLMResponseForStep(
+					chatHistory,
+					stateAfterExecuteAction,
+					updatedStepProperties);
+				break;
+			case "LINK":
+			case "NEXT":
+			default:
+				// can not happend
+				break;
+		}
+
+		if (dialogEngine.getCurrentDialogState().isFlowComplete) {
+			this.deleteState(sessionId)
+		}
+
+		return llm_response;
 	}
 }
 

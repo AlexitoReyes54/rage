@@ -24,7 +24,7 @@ class StateMachine implements Observer {
 	}
 
 	// GETTERS 
-
+	
 	getCurrentState() {
 		return this.currentState;
 	}
