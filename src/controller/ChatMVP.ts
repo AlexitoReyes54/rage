@@ -119,7 +119,7 @@ class ChatController {
 			let code: ResponseCode = 200;
 
 			if (!this.isSessionValid(sessionId)) {
-				//ws.close()
+				//	ws.close()
 			}
 
 			if (typeof payload !== 'string') return;
@@ -135,7 +135,7 @@ class ChatController {
 				dialogEngine = await this.useDialogEngine(sessionId);
 				// undefined == there are no more steps
 				if (!dialogEngine) {
-					ws.close()
+					//ws.close();
 				}
 			} catch (error) {
 				ws.send(JSON.stringify({
