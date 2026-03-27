@@ -138,7 +138,12 @@ class ChatController {
 					ws.close()
 				}
 			} catch (error) {
-				console.log(error);
+				ws.send(JSON.stringify({
+					type: "msg",
+					code: 500,
+					text: 'there was an interal error',
+					timestamp: new Date().toISOString()
+				}));
 			}
 
 			// TODO this error handling has to be improved 
@@ -163,6 +168,7 @@ class ChatController {
 				text: aiResponse,
 				timestamp: new Date().toISOString()
 			}));
+
 		});
 	}
 
