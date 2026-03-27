@@ -9,7 +9,7 @@ import { Message } from './../persistance/sqliteClient';
 import BussinesLogicTransformer from "./src/core/BussinesLogicTransformer/BussinesLogicTransformer";
 import AppError from "./src/core/Errors/AppError";
 import LLmProviderManager, { type ResponseInput } from "../core/LlmProviderManager/LlmProviderManager";
-import z from "zod";
+import z, { array } from "zod";
 import { bussinesLogicFile } from "./src/core/BussinesLogicParser/types";
 import visualizeWorkflow from "./src/core/StateMachine/utils/visualizeWorkflow";
 import type { DialogEngineState } from "./../core/DialogEngine/types";
@@ -99,12 +99,28 @@ class ChatController {
 		this.dialogEngineStateStorage.delete(sessionId)
 	}
 
+	private isSessionValid(sessionId: SessionId) {
+		return this.dialogEngineStateStorage.has(sessionId)
+	}
+
 	constructor() {
 		this.dialogEngineStateStorage = new Map();
 		this.dbClient = PersistanceChatClient.get_instance();
 		this.queue = new DynamicQueue<ControllerJob>(async (props) => {
 			const { ws, payload } = props
 			const { sessionId } = ws.data;
+			type ResponseCode = 200 | 300 | 400 | 500 | 501;
+			// Meaning of each code:
+			// 200 - all ok
+			// 300 - 
+			// 400
+			// 500 - interl error in the msg processing
+			// 501 - session endend
+			let code: ResponseCode = 200;
+
+			if (!this.isSessionValid(sessionId)) {
+				//ws.close()
+			}
 
 			if (typeof payload !== 'string') return;
 
@@ -114,16 +130,36 @@ class ChatController {
 			// history in the dialog engine i need all the messages
 			this.dbClient.save_msg(sessionId, clientMsg.text, 1); // 1 = humano
 
-			// TODO when i delete the sessionId in the useDialogEngine 
-			// i have to handdle that becaus then im just sendding undefined
-			const dialogEngine = sessionId;
-			//await this.useDialogEngine(sessionId);
-			let aiResponse = dialogEngine;
+			let dialogEngine;
+			try {
+				dialogEngine = await this.useDialogEngine(sessionId);
+				// undefined == there are no more steps
+				if (!dialogEngine) {
+					ws.close()
+				}
+			} catch (error) {
+				console.log(error);
+			}
+
+			// TODO this error handling has to be improved 
+			// with some status or somthing so the client can effectively comunicate the user that 
+			// somwthing went wroing with the server 
+			const errorMsg = "there is an internal error"
+			const aiResponse = dialogEngine ? dialogEngine : errorMsg;
+			if (!dialogEngine) code = 500;
 
 			this.dbClient.save_msg(sessionId, aiResponse, 0); // 0 = IA
+			/// TODO comunicate with the client when a sesseion is complete so it create a new sessionId
+			// well i have to think about it becausde in the future i dont have control over the client status
+			// so everithing has to happend in the server 
+			// 
+			// you can use the util fn isThisSessionComplete to make sure that this session is valid 
+			// or you should refreshe with a new session 
+
 
 			ws.send(JSON.stringify({
 				type: "msg",
+				code: code,
 				text: aiResponse,
 				timestamp: new Date().toISOString()
 			}));
@@ -151,6 +187,16 @@ class ChatController {
 		});
 		return res;
 	}
+
+
+	private isThisSessionComplete(dialogEngine: DialogEngine, sessionId: string) {
+		if (dialogEngine.getCurrentDialogState().isFlowComplete === true) {
+			this.deleteState(sessionId)
+			return true
+		}
+		return false
+	}
+
 
 	// TODO this fn requires a try catch block, many things can go wrong here
 	private async useDialogEngine(sessionId: string) {
@@ -185,13 +231,15 @@ class ChatController {
 				this.saveState(sessionId, updatedState)
 				break;
 			case "ACTION":
-				/// to be reviewed what happends here...
-				//
-				//if there are not instructions for the llm in the state then 
-				//execute the actiont whateveer is here
-				//
-				//for now i dont have 2 actions consecutive, do dont worry but that is a big issue
-				break;
+				const stateAfterExecuteAction = dialogEngine.excuteCurrentStep(initialState)
+				llm_response = await getLLMResponseForStep(
+					chatHistory,
+					stateAfterExecuteAction,
+					initialStepProperties
+				);
+
+				this.isThisSessionComplete(dialogEngine, sessionId)
+				return llm_response;
 			case "LINK":
 			case "NEXT":
 			default:
@@ -200,8 +248,7 @@ class ChatController {
 				break;
 		}
 
-		// TODO impliment error handling here for possible error here
-		if (!updatedState) return // this is an error
+		if (!updatedState) return // the flow is comleted, there are no next steps
 
 		// Responding process
 		const updatedStepProperties = dialogEngine.getCurrentStepDetail();
@@ -241,13 +288,12 @@ class ChatController {
 				break;
 		}
 
-		if (dialogEngine.getCurrentDialogState().isFlowComplete) {
-			this.deleteState(sessionId)
-		}
-
+		this.isThisSessionComplete(dialogEngine, sessionId)
 		return llm_response;
 	}
 }
 
 // Export a single instance (Singleton) to use in your Bun.serve
+
+
 export const chatController = new ChatController();
