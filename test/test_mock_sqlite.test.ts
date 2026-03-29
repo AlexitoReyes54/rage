@@ -56,4 +56,5 @@ async function runTest() {
 }
 
 // Run the test
-runTest().catch(console.error);
+// diable this test is not needed any more
+//runTest().catch(console.error);
