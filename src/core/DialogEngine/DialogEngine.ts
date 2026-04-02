@@ -25,7 +25,7 @@ class DialogEngine {
 	constructor(workflowName: string, stateMachine?: StateMachine) {
 		const workflowStateMachine = stateMachine ?? BussinesLogicTransformer
 			.getStateMachinesMapStore()
-			.get(workflowName)?.clone();
+			.get(workflowName)?.clone(); 
 		const stepsDetailedInfo = BussinesLogicTransformer.getAllWorkflowsStepsInfo()[workflowName]
 
 		if (!workflowStateMachine || !stepsDetailedInfo) {
@@ -239,7 +239,8 @@ class DialogEngine {
 		if (state?.stateMachine) {	
 			console.log('im evem passing a new state machinea');
 			let areTheSame = areMapsEqual(this.stateMachine.getStatesGrahp(), state?.stateMachine?.getStatesGrahp());
-			if (!areTheSame) throw new Error('passing a diferent state machine from the one at inisilization')
+			// TODO implement a better validation
+			//if (!areTheSame) throw new Error('passing a diferent state machine from the one at inisilization')
 		}
 
 		this.dialogEngineState = {

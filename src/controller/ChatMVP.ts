@@ -214,7 +214,8 @@ class ChatController {
 
 		// Setup process
 		let llmClient = new LLmProviderManager({ model: llmModelToBeUse });
-		let dialogEngine = new DialogEngine(workflowToBeUse);
+		//let dialogEngine = new DialogEngine(workflowToBeUse);
+		let dialogEngine = new DialogEngine(workflowToBeUse, initialState.stateMachine);
 		let initialStepProperties = dialogEngine.getCurrentStepDetail(); // step when i start the proces
 		let chatHistory = this.parseMsgsForLlm(sessionId);
 		initialState.chatHistory = chatHistory;
@@ -294,6 +295,7 @@ class ChatController {
 				break;
 		}
 
+		this.saveState(sessionId, updatedState)
 		this.isThisSessionComplete(dialogEngine, sessionId)
 		return llm_response;
 	}
