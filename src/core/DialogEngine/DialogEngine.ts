@@ -8,6 +8,7 @@ import { ActionsManager } from "../ActionsManager/ActionsManager";
 import type { CollectParam, DialogEngineState } from './types';
 import executeCompare from "./utils/executeCompare";
 import validateDataType from "./utils/validateDataType";
+import areMapsEqual from "../../utils/areMapsEqual";
 
 const validateSteps = (errorMessage: string, ...steps: (string | undefined)[]): void => {
 	if (steps.some(step => step === undefined)) {
@@ -24,7 +25,7 @@ class DialogEngine {
 	constructor(workflowName: string, stateMachine?: StateMachine) {
 		const workflowStateMachine = stateMachine ?? BussinesLogicTransformer
 			.getStateMachinesMapStore()
-			.get(workflowName)
+			.get(workflowName)?.clone();
 		const stepsDetailedInfo = BussinesLogicTransformer.getAllWorkflowsStepsInfo()[workflowName]
 
 		if (!workflowStateMachine || !stepsDetailedInfo) {
@@ -41,7 +42,7 @@ class DialogEngine {
 
 	}
 
-	getCurrentDialogState(){
+	getCurrentDialogState() {
 		return this.dialogEngineState;
 	}
 
@@ -234,6 +235,12 @@ class DialogEngine {
 	// error that happends inside this functino has to be habdled with grace 
 	// be super carefull with them
 	excuteCurrentStep(state?: DialogEngineState): DialogEngineState {
+
+		if (state?.stateMachine) {	
+			console.log('im evem passing a new state machinea');
+			let areTheSame = areMapsEqual(this.stateMachine.getStatesGrahp(), state?.stateMachine?.getStatesGrahp());
+			if (!areTheSame) throw new Error('passing a diferent state machine from the one at inisilization')
+		}
 
 		this.dialogEngineState = {
 			stateMachine: state?.stateMachine ? state.stateMachine : this.stateMachine,

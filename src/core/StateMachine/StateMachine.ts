@@ -24,7 +24,7 @@ class StateMachine implements Observer {
 	}
 
 	// GETTERS 
-	
+
 	getCurrentState() {
 		return this.currentState;
 	}
@@ -179,7 +179,32 @@ class StateMachine implements Observer {
 		}
 	}
 
+	clone(): StateMachine {
+		// 1. Extract the raw transitions from the Graph
+		// Since the graph is Map<StateName, Transition[]>, we flatten the values
+		const allTransitions: Transition[] = [];
+		this.statesGrahp.forEach((transitions) => {
+			allTransitions.push(...transitions);
+		});
 
+		// 2. Extract the registered states
+		const allStates: StateName[] = this.statesRegistry.getAll();
+
+		// 3. Convert Slot Map back to a plain object (SlotsObject)
+		const slotsObject: SlotsObject = Object.fromEntries(this.slotStorage);
+
+		// 4. Create the new instance
+		// Note: We pass the CURRENT state as the initial state for the clone
+		const clonedMachine = new StateMachine(
+			this.currentState,
+			allStates,
+			allTransitions,
+			slotsObject
+		);
+
+
+		return clonedMachine;
+	}
 }
 
 

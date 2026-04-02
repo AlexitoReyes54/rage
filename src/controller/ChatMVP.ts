@@ -107,68 +107,67 @@ class ChatController {
 		this.dialogEngineStateStorage = new Map();
 		this.dbClient = PersistanceChatClient.get_instance();
 		this.queue = new DynamicQueue<ControllerJob>(async (props) => {
-			const { ws, payload } = props
+			console.log('current sessions: ');
+			console.log(Array.from(this.dialogEngineStateStorage.keys()));
+			const { ws, payload } = props;
 			const { sessionId } = ws.data;
-			type ResponseCode = 200 | 300 | 400 | 500 | 501;
-			// Meaning of each code:
-			// 200 - all ok
-			// 300 - 
-			// 400
-			// 500 - interl error in the msg processing
-			// 501 - session endend
-			let code: ResponseCode = 200;
+			console.log('sessionId actual', sessionId);
 
-			if (!this.isSessionValid(sessionId)) {
-				//	ws.close()
-			}
-
-			if (typeof payload !== 'string') return;
-
-			let clientMsg = JSON.parse(payload) as MsgFromClient;
-
-			// this has to be here because when i read the chat 
-			// history in the dialog engine i need all the messages
-			this.dbClient.save_msg(sessionId, clientMsg.text, 1); // 1 = humano
-
-			let dialogEngine;
+			// 1. Wrap the ENTIRE callback in a try-catch to protect the queue from crashing
 			try {
-				dialogEngine = await this.useDialogEngine(sessionId);
-				// undefined == there are no more steps
-				if (!dialogEngine) {
-					//ws.close();
+				if (typeof payload !== 'string') return;
+
+				// 2. Safely parse the incoming message
+				let clientMsg: MsgFromClient;
+				try {
+					clientMsg = JSON.parse(payload);
+				} catch (parseError) {
+					ws.send(JSON.stringify({ type: "msg", code: 400, text: "Invalid JSON format" }));
+					return; // Stop execution for this job
 				}
+
+				// Save the user's message
+				this.dbClient.save_msg(sessionId, clientMsg.text, 1);
+
+				// 3. Get AI Response (Note: renamed variable to avoid confusion with the DialogEngine class)
+				const aiResponseText = await this.useDialogEngine(sessionId);
+
+				// 4. Handle the "No More Steps / Session Ended" scenario correctly
+				if (aiResponseText === undefined) {
+					// This means the flow is complete, NOT an internal error.
+					ws.send(JSON.stringify({
+						type: "msg",
+						code: 501, // Using your 501 code for "session ended"
+						text: "Conversation complete. No further steps.",
+						timestamp: new Date().toISOString()
+					}));
+					return; // Stop execution, don't save undefined to DB
+				}
+
+				// 5. Happy Path: Save AI response and send to client
+				this.dbClient.save_msg(sessionId, aiResponseText, 0);
+
+				ws.send(JSON.stringify({
+					type: "msg",
+					code: 200,
+					text: aiResponseText,
+					timestamp: new Date().toISOString()
+				}));
+
 			} catch (error) {
+				// 6. Global catch for THIS specific job. 
+				// If the DB, LLM, or Engine fails, it only breaks THIS user's flow, not the whole server.
+				console.error(`[Session ${sessionId}] Internal Error:`, error);
+
 				ws.send(JSON.stringify({
 					type: "msg",
 					code: 500,
-					text: 'there was an interal error',
+					text: 'There was an internal error processing your request.',
 					timestamp: new Date().toISOString()
 				}));
 			}
 
-			// TODO this error handling has to be improved 
-			// with some status or somthing so the client can effectively comunicate the user that 
-			// somwthing went wroing with the server 
-			const errorMsg = "there is an internal error"
-			const aiResponse = dialogEngine ? dialogEngine : errorMsg;
-			if (!dialogEngine) code = 500;
-
-			this.dbClient.save_msg(sessionId, aiResponse, 0); // 0 = IA
-			/// TODO comunicate with the client when a sesseion is complete so it create a new sessionId
-			// well i have to think about it becausde in the future i dont have control over the client status
-			// so everithing has to happend in the server 
-			// 
-			// you can use the util fn isThisSessionComplete to make sure that this session is valid 
-			// or you should refreshe with a new session 
-
-
-			ws.send(JSON.stringify({
-				type: "msg",
-				code: code,
-				text: aiResponse,
-				timestamp: new Date().toISOString()
-			}));
-
+			//// ===================
 		});
 	}
 
@@ -205,6 +204,8 @@ class ChatController {
 
 
 	// TODO this fn requires a try catch block, many things can go wrong here
+	//
+	// the problem is here when it comes to merging sessions state
 	private async useDialogEngine(sessionId: string) {
 		const workflowToBeUse = 'medical';
 		const llmModelToBeUse = 'gpt-4o-2024-08-06';
@@ -233,7 +234,6 @@ class ChatController {
 
 				const { value } = JSON.parse(extractedParam.output_text);
 				updatedState = dialogEngine.excuteCurrentStep({ ...initialState, collectedData: value })
-
 				this.saveState(sessionId, updatedState)
 				break;
 			case "ACTION":
