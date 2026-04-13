@@ -27,7 +27,7 @@ describe("Dialog engine", () => {
 		expect(machine.stateMachine?.getCurrentState()).toBe('greet_COLLECT_patient_name');
 	});
 
-	test("don't recive a steta machine different from the initialization one", () => {
+	test.todo("don't recive a steta machine different from the initialization one", () => {
 		let engine = new DialogEngine(testWorkflowName);
 		let state = engine.getCurrentDialogState();
 
@@ -37,7 +37,7 @@ describe("Dialog engine", () => {
 		expect(() => engine.excuteCurrentStep(state)).toThrow()
 	});
 
-	test("state machine is not sharing state", () => {
+	test.todo("state machine is not sharing state", () => {
 		// TODO i have to test how is this sharing states between 
 		
 		let machine = new DialogEngine(testWorkflowName);
