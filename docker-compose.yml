@@ -1,8 +1,27 @@
 services:
+  db:
+    image: postgres:16
+    container_name: rage_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rage-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
   backend:
     build: .
     container_name: bun-backend
     restart: always
     ports:
       - "3000:3000"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
+
 
