@@ -4,13 +4,17 @@
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.31.10"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.2",
     "openai": "^6.25.0",
+    "pg": "^8.20.0",
     "zod": "^4.3.6"
   }
 }
