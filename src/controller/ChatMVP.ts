@@ -60,7 +60,7 @@ export type WebSocketData = {
 };
 
 interface ControllerJob {
-	ws: Bun.ServerWebSocket<WebSocketData>;
+	//ws: Bun.ServerWebSocket<WebSocketData>;
 	payload: Buffer<ArrayBuffer> | string;
 }
 
@@ -103,13 +103,14 @@ class ChatController {
 		return this.dialogEngineStateStorage.has(sessionId)
 	}
 
+
 	constructor() {
 		this.dialogEngineStateStorage = new Map();
 		this.dbClient = PersistanceChatClient.get_instance();
 		this.queue = new DynamicQueue<ControllerJob>(async (props) => {
 			console.log('current sessions: ');
 			console.log(Array.from(this.dialogEngineStateStorage.keys()));
-			const { ws, payload } = props;
+			const { payload } = props;
 			const { sessionId } = ws.data;
 			console.log('sessionId actual', sessionId);
 
@@ -122,7 +123,7 @@ class ChatController {
 				try {
 					clientMsg = JSON.parse(payload);
 				} catch (parseError) {
-					ws.send(JSON.stringify({ type: "msg", code: 400, text: "Invalid JSON format" }));
+					return JSON.stringify({ type: "msg", code: 400, text: "Invalid JSON format" });
 					return; // Stop execution for this job
 				}
 
@@ -135,24 +136,24 @@ class ChatController {
 				// 4. Handle the "No More Steps / Session Ended" scenario correctly
 				if (aiResponseText === undefined) {
 					// This means the flow is complete, NOT an internal error.
-					ws.send(JSON.stringify({
+					return JSON.stringify({
 						type: "msg",
 						code: 501, // Using your 501 code for "session ended"
 						text: "Conversation complete. No further steps.",
 						timestamp: new Date().toISOString()
-					}));
+					});
 					return; // Stop execution, don't save undefined to DB
 				}
 
 				// 5. Happy Path: Save AI response and send to client
 				this.dbClient.save_msg(sessionId, aiResponseText, 0);
 
-				ws.send(JSON.stringify({
+				return JSON.stringify({
 					type: "msg",
 					code: 200,
 					text: aiResponseText,
 					timestamp: new Date().toISOString()
-				}));
+				});
 
 			} catch (error) {
 				// 6. Global catch for THIS specific job. 

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title></title>
+	<script src="components/bootstrap-styles.js" type="module"></script>
+	<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
+		integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
+		crossorigin="anonymous"></script>
+	<meta name="htmx-config" content='{"selfRequestsOnly":false}'>
+</head>
+
+<body>
+	<bootstrap-styles>
+
+		<body class="bg-light">
+
+			<div class="vh-100 d-flex align-items-center justify-content-center">
+
+				<div class="card p-4 shadow-sm border" style="max-width: 400px; width: 100%;">
+					<div class="card-body">
+
+						<h3 class="text-center mb-4 fw-normal text-secondary">Sign In</h3>
+
+						<div class="mb-3">
+							<label for="email" class="form-label small text-muted">Email
+								address</label>
+							<input type="email" class="form-control" id="email"
+								placeholder="name@example.com">
+						</div>
+
+						<div class="mb-4">
+							<label for="password"
+								class="form-label small text-muted">Password</label>
+							<input type="password" class="form-control" id="password"
+								placeholder="••••••••">
+						</div>
+
+						<button id="login-btn" class="btn btn-dark w-100 py-2">Login</button>
+						<button id="signup-btn"
+							class="btn btn-primary w-100 py-2">singup</button>
+						<button id="out" class="btn btn-danger w-100 py-2">out</button>
+
+					</div>
+				</div>
+
+			</div>
+
+	</bootstrap-styles>
+
+	<script src="scripts/firebase-auth.js" type="module"></script>
+
+
+
+
+
+
+</body>
+
+</html>

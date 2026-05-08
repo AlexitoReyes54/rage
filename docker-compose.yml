@@ -21,6 +21,15 @@ services:
     depends_on:
       - db
 
+  redis:
+    image: redis:alpine
+    container_name: rage_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - db_data:/var/lib/redis/data
+
 volumes:
   db_data:
 

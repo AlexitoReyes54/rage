@@ -1,6 +1,9 @@
 # dependencies (bun install)
 node_modules
 
+# firebase credentials
+firebase.json
+
 # output
 out
 dist
