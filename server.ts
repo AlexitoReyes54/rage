@@ -5,6 +5,7 @@ import { cors } from '@elysiajs/cors'
 
 // html files
 const login = Bun.file('./src/views/login.html').text();
+const booking = Bun.file('./src/views/booking.html').text();
 const chatroom = Bun.file('./chatroom.html').text();
 
 //types for controllers
@@ -26,6 +27,8 @@ import * as admin from 'firebase-admin';
 import firebase_admin from 'firebase-admin';
 import serviceAccount from "./firebase.json";
 import { getAuth } from "firebase-admin/auth";
+import { bookingSchema } from './src/types/booking';
+import { bookingController } from './src/controller/bookingController';
 
 firebase_admin.initializeApp({
 	credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
@@ -109,8 +112,26 @@ const app = new Elysia({
 	.use(cors())
 	.use(html())
 
-	.get('/login', async ({ html }) => html(login))
+	// endpoints for date booking
 
+	.post('/booking/save', async ({ body }) => {
+		try {
+			let done = await bookingController.saveBooking(body);
+			return Response.json({ created: done, ...body });
+		} catch (error) {
+			//this needs better detail to know what happened
+			return Response.json({ created: false });
+		}
+	}, { body: bookingSchema })
+
+	.get('/booking/user/:id', async ({ params: { id } }) => {
+		let res = await bookingController.getAllBookingFromUser(id);
+		return Response.json({ items: res });
+	})
+
+	.get('/booking', async ({ html }) => html(booking))
+
+	.get('/login', async ({ html }) => html(login))
 	// TODO working here my friend
 	.get('/t', async () => {
 
@@ -206,6 +227,7 @@ const app = new Elysia({
 			return Response.json({ created: false });
 		}
 	}, { body: NewUserSchema })
+
 	.ws('/msg', {
 		open(ws) {
 			const client = PersistanceChatClient.get_instance();

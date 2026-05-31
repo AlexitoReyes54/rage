@@ -122,3 +122,11 @@ export const configs = pgTable('configs', {
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const bookings = pgTable('bookings', {
+	id: serial('id').primaryKey(),
+	description: text('description'),
+	date: timestamp({ precision: 6, withTimezone: true }).notNull(),
+	userId: text('user_id').references(() => users.id).notNull(),
+	// date format:
+	// 2026-05-31 14:00:00-04:00
+});
