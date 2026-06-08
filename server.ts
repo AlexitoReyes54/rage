@@ -6,6 +6,7 @@ import { cors } from '@elysiajs/cors'
 // html files
 const login = Bun.file('./src/views/login.html').text();
 const booking = Bun.file('./src/views/booking.html').text();
+const error = Bun.file('./src/views/error.html').text();
 const chatroom = Bun.file('./chatroom.html').text();
 
 //types for controllers
@@ -129,7 +130,15 @@ const app = new Elysia({
 		return Response.json({ items: res });
 	})
 
-	.get('/booking', async ({ html }) => html(booking))
+
+	.get('/booking/:id', async ({ params: { id }, html }) => {
+
+		let booking = await Bun.file('./src/views/booking.html').text();
+		let isUser = await userController.findUserdById(id);
+		if (!isUser) return html(error);
+
+		return html(booking);
+	})
 
 	.get('/login', async ({ html }) => html(login))
 	// TODO working here my friend

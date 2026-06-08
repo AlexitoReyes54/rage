@@ -1,10 +1,23 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { users, organizations, organizationMembers } from './../persistance/schemas';
 import type { NewUser } from '../types/newUser';
+import { eq } from 'drizzle-orm';
 
 const db = drizzle(process.env.DATABASE_URL!);
 
 class UserController {
+
+	async findUserdById(id: string) {
+		try {
+			let returnedUser = await db.select().from(users).where(eq(users.id, id))
+			console.log(returnedUser);
+			if (returnedUser.length < 1) return false;
+			return true;
+		} catch (error) {
+			console.error('error while trying to find uuser in the database: ' + error)
+			return false;
+		}
+	}
 
 	async createNewUser(data: NewUser) {
 

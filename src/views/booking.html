@@ -4,26 +4,193 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+		integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+		crossorigin="anonymous">
+
+
 </head>
 
 <body>
-	<h1>sample</h1>
+	<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
+	<!-- As a heading -->
+	<nav class="navbar bg-body-tertiary">
+		<div class="container-fluid">
+			<span class="navbar-brand mb-0 h1">ChatPilot</span>
+		</div>
+	</nav>
+
+
+	<br>
+
+	<!-- datepicker related -->
+	<div id="step-date">
+
+		<div class="d-flex justify-content-center align-items-center flex-column">
+			<h2 class="pb-4">Seleccionar fecha de preferencia</h2>
+			<input id="date-picker" hidden />
+		</div>
+		<br>
+		<br>
+
+
+	</div>
+
+
+	<hr>
+
+	<!-- time related -->
+	<div id="step-time">
+		<div id="times" class="d-flex p-2 flex-column justify-content-center  ">
+
+			<div id="times" class="d-flex p-2  align-items-center justify-content-center  ">
+				<h2 class="pb-4 center">Seleccionar hora de preferencia</h2>
+			</div>
+
+			<!-- Button trigger modal -->
+			<button type="button" class="btn btn-light border" data-bs-toggle="modal"
+				data-bs-target="#confirmModal">
+				12:00 AM
+			</button>
+
+		</div>
+	</div>
+
+	<!-- Modal -->
+	<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"
+						aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					...
+					add here the date so the user sees it before it
+					confirms the date to be settep up
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary"
+						data-bs-dismiss="modal">Close</button>
+					<button type="button" class="btn btn-primary">Save changes</button>
+				</div>
+			</div>
+		</div>
+	</div>
 
 	<script>
-		let params = new URLSearchParams(document.location.search);
-		let id = params.get('id');
-		console.log(id)
-
-
-		// here have to 
-		// 1. validate the user id is valid
+		// 1. validate the user id is valid - done backened
 		// 2. load the UI
 		// 3. send the data the backend
 		// 4. provide feedback about the server response
 		// 5. show success screen or failure
 		// 6. 
 
+		// create some fn to save the hour once i click the time btn that opens the modal
+
+		// global variables fo the view
+		var dateTimeState = {
+			dateString: null,
+			timeString: null,
+		}
+
+		function render() {
+			if (dateTimeState.dateString === null) {
+				/// just render the datepicker step
+				document.getElementById('step-time').style.display = 'none'
+				document.getElementById('step-date').style.display = 'block'
+			}
+
+			if (dateTimeState.dateString !== null && dateTimeState.timeString === null) {
+				// just render the time step
+				document.getElementById('step-time').style.display = 'block'
+				document.getElementById('step-date').style.display = 'none'
+			}
+		}
+
+		function sendToServer() {
+			// do something...
+			// this has to be replaced with htmx probably...
+		}
+
+		function resetDateTimeState() {
+			dateTimeState = {
+				dateString: null,
+				timeString: null,
+			};
+			render();
+		}
+
+		function logState() {
+			console.log('-----------------------')
+			console.log('CURRNT STATE')
+			console.log(dateTimeState)
+			console.log('-----------------------')
+		}
+
+		function updateModalText() {
+
+			if (dateTimeState.dateString !== null && dateTimeState.timeString !== null) {
+				const modalBody = document.querySelector('.modal-body');
+				let t = 'the date is' + dateTimeState.dateString + ' at time ' + dateTimeState.timeString;
+				modalBody.textContent = t;
+			}
+		}
+
+
+		// mock variable
+		let times = ['12:00 AM', '11:00 AM', '10:00 AM', '9:00 AM', '8:00 AM', '7:00 AM', '6:00 AM']
+		let timesContainer = document.getElementById('times')
+
+		times.forEach((val) => {
+			let btn = document.createElement('button');
+			btn.className = 'btn btn-light border mt-2'
+			btn.textContent = val;
+			btn.setAttribute('data-bs-toggle', 'modal');
+			btn.setAttribute('data-bs-target', '#confirmModal');
+
+			btn.addEventListener('click', () => {
+				dateTimeState.timeString = val;
+				logState()
+				updateModalText()
+			})
+
+			timesContainer.append(btn)
+		})
+
+
+		// datepicker
+		const element = document.getElementById("date-picker");
+		const fp = flatpickr(element, {
+			enableTime: true,
+			dateFormat: "Y-m-d H:i",
+			inline: true,
+			enableTime: false,
+
+			// hooks
+			onReady: () => {
+				render();
+			},
+
+			onChange: (seledtedDate, dateStr, instance) => {
+				console.log(dateTimeState.dateString)
+				dateTimeState.dateString = dateStr;
+				logState()
+				render()
+			}
+		});
+
 	</script>
+
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+		integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+		crossorigin="anonymous"></script>
 </body>
 
-</html>m
+
+</html>
