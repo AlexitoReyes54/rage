@@ -117,6 +117,9 @@ const app = new Elysia({
 
 	.post('/booking/save', async ({ body }) => {
 		try {
+			// TODO this is not reporting errrors, to be fixed in the future there is no 
+			// way for me to see it in the client
+			
 			let done = await bookingController.saveBooking(body);
 			return Response.json({ created: done, ...body });
 		} catch (error) {

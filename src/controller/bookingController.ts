@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 const db = drizzle(process.env.DATABASE_URL!);
 
 // ia generated
+// this has to validta is ISO 8601 string for dates
 function isDateStringValid(dateStr: string) {
 	// 1. Regex validates the exact format: YYYY-MM-DDTHH:mm:ss.sssZ
 	const iso8601Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;

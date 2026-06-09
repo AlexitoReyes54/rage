@@ -10,6 +10,11 @@
 		integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
 		crossorigin="anonymous">
 
+	<!-- htmx -->
+	<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
+		integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
+		crossorigin="anonymous"></script>
+	<meta name="htmx-config" content='{"selfRequestsOnly":false}'>
 
 </head>
 
@@ -37,11 +42,15 @@
 		<br>
 		<br>
 
+		<button hx-post="/booking/save"
+			hx-vals='{"id": "bkg_123", "description": "Consultation Meeting", "date": "2026-06-09T17:43:27.000Z", "userId": "user_2p8Z9xQ4vL1kM3n7W5a0bCe"}'
+			hx-target="#response-container" hx-swap="innerHTML" class="btn btn-light border">
+			12:00 AM
+		</button>
 
+		<div id="response-container"></div>
 	</div>
 
-
-	<hr>
 
 	<!-- time related -->
 	<div id="step-time">
@@ -65,19 +74,21 @@
 		<div class="modal-dialog">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+					<h1 class="modal-title fs-5" id="exampleModalLabel">Confirmar datos</h1>
 					<button type="button" class="btn-close" data-bs-dismiss="modal"
 						aria-label="Close"></button>
 				</div>
+
 				<div class="modal-body">
 					...
-					add here the date so the user sees it before it
+					add here the date so thetitle user sees it before it
 					confirms the date to be settep up
 				</div>
+
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary"
-						data-bs-dismiss="modal">Close</button>
-					<button type="button" class="btn btn-primary">Save changes</button>
+						data-bs-dismiss="modal">Cerrar</button>
+					<button type="button" class="btn btn-primary">Agendar</button>
 				</div>
 			</div>
 		</div>
@@ -96,21 +107,35 @@
 		// global variables fo the view
 		var dateTimeState = {
 			dateString: null,
-			timeString: null,
 		}
 
 		function render() {
 			if (dateTimeState.dateString === null) {
-				/// just render the datepicker step
 				document.getElementById('step-time').style.display = 'none'
 				document.getElementById('step-date').style.display = 'block'
-			}
-
-			if (dateTimeState.dateString !== null && dateTimeState.timeString === null) {
-				// just render the time step
+			} else {
 				document.getElementById('step-time').style.display = 'block'
 				document.getElementById('step-date').style.display = 'none'
 			}
+
+		}
+
+
+		// timeObj: {text: "08:00 AM", value: [8, 0]},
+		function updateTimeToDate(timeObj) {
+
+			if (!dateTimeState.dateString) {
+				// error here...
+				// what to do here ???
+				return;
+			}
+
+
+			let isoFormatedDate = new Date(dateTimeState.dateString)
+			let timeUpdated = isoFormatedDate.setUTCHours(timeObj.value[0], timeObj.value[1])
+			console.log('updated: ', isoFormatedDate.toISOString())
+
+			dateTimeState.dateString = isoFormatedDate.toISOString();
 		}
 
 		function sendToServer() {
@@ -121,11 +146,11 @@
 		function resetDateTimeState() {
 			dateTimeState = {
 				dateString: null,
-				timeString: null,
 			};
 			render();
 		}
 
+		// TODO add go back btn in the time step view
 		function logState() {
 			console.log('-----------------------')
 			console.log('CURRNT STATE')
@@ -133,29 +158,70 @@
 			console.log('-----------------------')
 		}
 
+		// TODO have to fix the modal text generation based on the 
+		// date string in iso format 
 		function updateModalText() {
 
-			if (dateTimeState.dateString !== null && dateTimeState.timeString !== null) {
+			if (dateTimeState.dateString !== null) {
 				const modalBody = document.querySelector('.modal-body');
-				let t = 'the date is' + dateTimeState.dateString + ' at time ' + dateTimeState.timeString;
-				modalBody.textContent = t;
+
+
+				// i dont know what this code does
+				const date = new Date(dateTimeState.dateString);
+				const options = {
+					weekday: 'long',
+					year: 'numeric',
+					month: 'long',
+					day: 'numeric',
+					hour: 'numeric',
+					minute: '2-digit',
+
+				};
+
+				// Cambiamos 'en-US' por 'es-ES' (España) o 'es-MX' (México), etc.
+				let text = date.toLocaleString('es-ES', option);
+				modalBody.textContent = text + ' ' + dateTimeState.dateString;
+
 			}
 		}
 
 
-		// mock variable
-		let times = ['12:00 AM', '11:00 AM', '10:00 AM', '9:00 AM', '8:00 AM', '7:00 AM', '6:00 AM']
+		let timesObject = [
+			{text: "08:00 AM", value: [8, 0]},
+			{text: "08:30 AM", value: [8, 30]},
+			{text: "09:00 AM", value: [9, 0]},
+			{text: "09:30 AM", value: [9, 30]},
+			{text: "10:00 AM", value: [10, 0]},
+			{text: "10:30 AM", value: [10, 30]},
+			{text: "11:00 AM", value: [11, 0]},
+			{text: "11:30 AM", value: [11, 30]},
+			{text: "12:00 PM", value: [12, 0]},
+			{text: "12:30 PM", value: [12, 30]},
+			{text: "01:00 PM", value: [13, 0]},
+			{text: "01:30 PM", value: [13, 30]},
+			{text: "02:00 PM", value: [14, 0]},
+			{text: "02:30 PM", value: [14, 30]},
+			{text: "03:00 PM", value: [15, 0]},
+			{text: "03:30 PM", value: [15, 30]},
+			{text: "04:00 PM", value: [16, 0]},
+			{text: "04:30 PM", value: [16, 30]},
+			{text: "05:00 PM", value: [17, 0]},
+			{text: "05:30 PM", value: [17, 30]},
+			{text: "06:00 PM", value: [18, 0]}
+		];
+
+
 		let timesContainer = document.getElementById('times')
 
-		times.forEach((val) => {
+		timesObject.forEach((val) => {
 			let btn = document.createElement('button');
 			btn.className = 'btn btn-light border mt-2'
-			btn.textContent = val;
+			btn.textContent = val.text;
 			btn.setAttribute('data-bs-toggle', 'modal');
 			btn.setAttribute('data-bs-target', '#confirmModal');
 
 			btn.addEventListener('click', () => {
-				dateTimeState.timeString = val;
+				updateTimeToDate(val)
 				logState()
 				updateModalText()
 			})
@@ -167,7 +233,6 @@
 		// datepicker
 		const element = document.getElementById("date-picker");
 		const fp = flatpickr(element, {
-			enableTime: true,
 			dateFormat: "Y-m-d H:i",
 			inline: true,
 			enableTime: false,
@@ -178,6 +243,8 @@
 			},
 
 			onChange: (seledtedDate, dateStr, instance) => {
+
+
 				console.log(dateTimeState.dateString)
 				dateTimeState.dateString = dateStr;
 				logState()
