@@ -119,7 +119,7 @@ const app = new Elysia({
 		try {
 			// TODO this is not reporting errrors, to be fixed in the future there is no 
 			// way for me to see it in the client
-			
+
 			let done = await bookingController.saveBooking(body);
 			return Response.json({ created: done, ...body });
 		} catch (error) {
@@ -141,6 +141,16 @@ const app = new Elysia({
 		if (!isUser) return html(error);
 
 		return html(booking);
+	})
+
+
+	// TODO implement some beautiful page for 
+	// the error and complet urls in the
+	.get('/not-valid', () => {
+		return 'hey we sorry but there is an error in your request'
+	})
+	.get('/successful', () => {
+		return 'completed '
 	})
 
 	.get('/login', async ({ html }) => html(login))

@@ -126,7 +126,13 @@ export const bookings = pgTable('bookings', {
 	id: serial('id').primaryKey(),
 	description: text('description'),
 	date: timestamp({ precision: 6, withTimezone: true }).notNull(),
-	userId: text('user_id').references(() => users.id).notNull(),
 	// date format:
 	// 2026-05-31 14:00:00-04:00
+	userId: text('user_id').references(() => users.id).notNull(),
+	leadName: text('lead_name'),
+	conversationId: integer('conversation_id')
+		.references(() => conversations.id, {
+			onDelete: 'cascade'
+		}).notNull(),
+	createdAt: timestamp('created_at').defaultNow().notNull(),
 });

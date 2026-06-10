@@ -83,12 +83,19 @@
 					...
 					add here the date so thetitle user sees it before it
 					confirms the date to be settep up
+					<br>
+					<br>
+
+
+					<!-- here i have to capture the user name  -->
+					<label for="">cual es su nombre ? </label>
+					<input type="text" id="lead-name" name="small" value="juan">
 				</div>
 
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary"
 						data-bs-dismiss="modal">Cerrar</button>
-					<button type="button" class="btn btn-primary">Agendar</button>
+					<button id="book-btn" type="button" class="btn btn-primary">Agendar</button>
 				</div>
 			</div>
 		</div>
@@ -102,7 +109,36 @@
 		// 5. show success screen or failure
 		// 6. 
 
-		// create some fn to save the hour once i click the time btn that opens the modal
+		// i need to validate that there is a param for me to save have a number to display in the dashboard
+
+		const ERROR_URL = '/not-valid';
+		const SUCCESS_URL = '/successful';
+		const REQUIRED_PARAM = 'contact';
+
+		const urlParams = new URLSearchParams(window.location.search);
+
+		if (!urlParams.has(REQUIRED_PARAM)) {
+			window.location.pathname = ERROR_URL;
+		}
+
+		// todo this btn is only enabled when the value of the input for the name/
+		// id not empty 
+		document.getElementById('book-btn').addEventListener('click', () => {
+			
+			let leadName = document.getElementById('lead-name').value;
+			let contactNumber = urlParams.get("contact");
+
+			console.log('name is ')
+			console.log(leadName)
+			console.log(contactNumber)
+
+
+			// hold on is there a meeting at this time ????
+			// dont worry about that for  now
+
+
+
+		})
 
 		// global variables fo the view
 		var dateTimeState = {

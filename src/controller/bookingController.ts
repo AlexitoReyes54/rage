@@ -42,7 +42,9 @@ class BookingController {
 			const booking: typeof bookings.$inferInsert = {
 				userId: data.userId,
 				date: new Date(data.date),
-				description: data.description
+				description: data.description,
+				conversationId: data.conversationID,
+				leadName: data.leadName || ''
 			};
 
 			await db.insert(bookings).values(booking);
