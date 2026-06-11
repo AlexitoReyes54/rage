@@ -15,6 +15,7 @@
 		integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
 		crossorigin="anonymous"></script>
 	<meta name="htmx-config" content='{"selfRequestsOnly":false}'>
+	<script src="https://unpkg.com/htmx-ext-json-enc@2.0.1/json-enc.js"></script>
 
 </head>
 
@@ -42,11 +43,6 @@
 		<br>
 		<br>
 
-		<button hx-post="/booking/save"
-			hx-vals='{"id": "bkg_123", "description": "Consultation Meeting", "date": "2026-06-09T17:43:27.000Z", "userId": "user_2p8Z9xQ4vL1kM3n7W5a0bCe"}'
-			hx-target="#response-container" hx-swap="innerHTML" class="btn btn-light border">
-			12:00 AM
-		</button>
 
 		<div id="response-container"></div>
 	</div>
@@ -60,11 +56,6 @@
 				<h2 class="pb-4 center">Seleccionar hora de preferencia</h2>
 			</div>
 
-			<!-- Button trigger modal -->
-			<button type="button" class="btn btn-light border" data-bs-toggle="modal"
-				data-bs-target="#confirmModal">
-				12:00 AM
-			</button>
 
 		</div>
 	</div>
@@ -80,9 +71,7 @@
 				</div>
 
 				<div class="modal-body">
-					...
-					add here the date so thetitle user sees it before it
-					confirms the date to be settep up
+					<p class="modal-body-text"></p>
 					<br>
 					<br>
 
@@ -95,7 +84,11 @@
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary"
 						data-bs-dismiss="modal">Cerrar</button>
-					<button id="book-btn" type="button" class="btn btn-primary">Agendar</button>
+
+					<button id="book-btn" type="button" class="btn btn-primary"
+						hx-post="/booking/save" hx-vals="js:{...getBookingRequestValues()}"
+						hx-ext="json-enc">Agendar</button>
+
 				</div>
 			</div>
 		</div>
@@ -104,7 +97,7 @@
 	<script>
 		// 1. validate the user id is valid - done backened
 		// 2. load the UI
-		// 3. send the data the backend
+		// 3. send the data the backendc
 		// 4. provide feedback about the server response
 		// 5. show success screen or failure
 		// 6. 
@@ -115,7 +108,20 @@
 		const SUCCESS_URL = '/successful';
 		const REQUIRED_PARAM = 'contact';
 
+		// lobal variables fo the view
+		var dateString = null;
+
+
 		const urlParams = new URLSearchParams(window.location.search);
+		let contactNumber = urlParams.get("contact");
+		let leadName = '';
+
+		const currentUrl = window.location.href;
+		const segments = new URL(currentUrl)
+			.pathname.split('/')
+			.filter(segment => segment !== "");
+		const userId = segments[segments.length - 1];
+
 
 		if (!urlParams.has(REQUIRED_PARAM)) {
 			window.location.pathname = ERROR_URL;
@@ -124,29 +130,31 @@
 		// todo this btn is only enabled when the value of the input for the name/
 		// id not empty 
 		document.getElementById('book-btn').addEventListener('click', () => {
-			
-			let leadName = document.getElementById('lead-name').value;
-			let contactNumber = urlParams.get("contact");
 
-			console.log('name is ')
-			console.log(leadName)
-			console.log(contactNumber)
+			leadName = document.getElementById('lead-name').value;
 
 
-			// hold on is there a meeting at this time ????
+			// TODO hold on is there a meeting at this time ????
 			// dont worry about that for  now
-
-
-
 		})
 
-		// global variables fo the view
-		var dateTimeState = {
-			dateString: null,
+		function getBookingRequestValues() {
+
+			let x = {
+				id: "",
+				date: dateString,
+				userId: userId,
+				description: "",    // Opcional en Zod, inicializado como string vacío
+				conversationID: 3,   // Tipo number, inicializado en 0 para evitar null/undefined
+				leadName: leadName        // Opcional en Zod, inicializado como string vacío
+			};
+
+			console.log(x)
+			return x;
 		}
 
 		function render() {
-			if (dateTimeState.dateString === null) {
+			if (dateString === null) {
 				document.getElementById('step-time').style.display = 'none'
 				document.getElementById('step-date').style.display = 'block'
 			} else {
@@ -160,18 +168,18 @@
 		// timeObj: {text: "08:00 AM", value: [8, 0]},
 		function updateTimeToDate(timeObj) {
 
-			if (!dateTimeState.dateString) {
+			if (!dateString) {
 				// error here...
 				// what to do here ???
 				return;
 			}
 
 
-			let isoFormatedDate = new Date(dateTimeState.dateString)
+			let isoFormatedDate = new Date(dateString)
 			let timeUpdated = isoFormatedDate.setUTCHours(timeObj.value[0], timeObj.value[1])
 			console.log('updated: ', isoFormatedDate.toISOString())
 
-			dateTimeState.dateString = isoFormatedDate.toISOString();
+			dateString = isoFormatedDate.toISOString();
 		}
 
 		function sendToServer() {
@@ -180,17 +188,15 @@
 		}
 
 		function resetDateTimeState() {
-			dateTimeState = {
-				dateString: null,
-			};
-			render();
+			dateString = null,
+				render();
 		}
 
 		// TODO add go back btn in the time step view
 		function logState() {
 			console.log('-----------------------')
 			console.log('CURRNT STATE')
-			console.log(dateTimeState)
+			console.log(dateString)
 			console.log('-----------------------')
 		}
 
@@ -198,27 +204,31 @@
 		// date string in iso format 
 		function updateModalText() {
 
-			if (dateTimeState.dateString !== null) {
-				const modalBody = document.querySelector('.modal-body');
+			if (dateString !== null) {
+				const modalBody = document.querySelector('.modal-body-text');
 
+				let iso = new Date(dateString)
 
-				// i dont know what this code does
-				const date = new Date(dateTimeState.dateString);
 				const options = {
-					weekday: 'long',
-					year: 'numeric',
-					month: 'long',
-					day: 'numeric',
-					hour: 'numeric',
-					minute: '2-digit',
-
+					weekday: 'long',   // 'short' (mié), 'long' (miércoles)
+					year: 'numeric',   // 'numeric' (2026), '2-digit' (26)
+					month: 'long',     // 'short' (jun), 'long' (junio)
+					day: 'numeric'     // 'numeric' (24)
 				};
 
+				const readableString = iso.toLocaleDateString('es-ES', options);
+
+
+
+				console.log(readableString);
+				let time = iso.toLocaleTimeString('en-US');
+
+
 				// Cambiamos 'en-US' por 'es-ES' (España) o 'es-MX' (México), etc.
-				let text = date.toLocaleString('es-ES', option);
-				modalBody.textContent = text + ' ' + dateTimeState.dateString;
+				modalBody.textContent =  'Agendo su cita para: ' +  readableString + ' - ' + time;
 
 			}
+
 		}
 
 
@@ -281,8 +291,8 @@
 			onChange: (seledtedDate, dateStr, instance) => {
 
 
-				console.log(dateTimeState.dateString)
-				dateTimeState.dateString = dateStr;
+				console.log(dateString)
+				dateString = dateStr;
 				logState()
 				render()
 			}

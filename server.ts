@@ -115,15 +115,17 @@ const app = new Elysia({
 
 	// endpoints for date booking
 
-	.post('/booking/save', async ({ body }) => {
+	.post('/booking/save', async ({ body, set }) => {
 		try {
 			// TODO this is not reporting errrors, to be fixed in the future there is no 
 			// way for me to see it in the client
 
 			let done = await bookingController.saveBooking(body);
+			set.headers['HX-Redirect'] = '/successful'
 			return Response.json({ created: done, ...body });
 		} catch (error) {
 			//this needs better detail to know what happened
+			set.headers['HX-Redirect'] = '/not-valid'
 			return Response.json({ created: false });
 		}
 	}, { body: bookingSchema })

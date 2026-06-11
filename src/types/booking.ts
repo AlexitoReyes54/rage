@@ -4,8 +4,8 @@ export const bookingSchema = z.object({
 	id: z.string(),
 	date: z.string(),
 	userId: z.string(),
-	conversationID: z.number(),
 	description: z.string().optional(),
+	conversationID: z.number(),
 	leadName: z.string().optional(),
 });
 
