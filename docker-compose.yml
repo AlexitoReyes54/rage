@@ -10,7 +10,16 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: rage_chroma
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
 
   backend:
     build: .
@@ -20,6 +29,8 @@ services:
       - "3000:3000"
     depends_on:
       - db
+      - chroma
+      - redis
 
   redis:
     image: redis:alpine
@@ -28,9 +39,9 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - db_data:/var/lib/redis/data
+      - redis_data:/data
 
 volumes:
-  db_data:
-
-
+  postgres_data:
+  chroma_data:
+  redis_data:
